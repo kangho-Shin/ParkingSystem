@@ -1,5 +1,6 @@
 using Newtonsoft.Json.Serialization;
 using Parking.Api.Features.Entries;
+using Parking.Api.Features.Fees;
 using Parking.Central.Data;
 
 namespace Parking.Api
@@ -19,6 +20,7 @@ namespace Parking.Api
             builder.Services.AddScoped<IParkingExitRepository>(_ => new ParkingExitRepository(connectionString));
             builder.Services.AddScoped<ISiteConfigurationRepository>(_ => new SiteConfigurationRepository(connectionString));
             builder.Services.AddScoped<CreateEntryHandler>();
+            builder.Services.AddScoped(_ => new FeeCalculationService(connectionString));
 
             WebApplication app = builder.Build();
             app.MapGet("/", () => "Parking API");

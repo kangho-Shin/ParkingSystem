@@ -7,7 +7,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\BuildingBlocks\Parking.Contracts\Parking.Contracts.csproj" />
+    <ProjectReference Include="..\..\FeeEngine\Parking.FeeEngine.csproj" />
     <ProjectReference Include="..\Parking.Central.Data\Parking.Central.Data.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="9.0.0" />
+    <PackageReference Include="MySqlConnector" Version="2.6.2" />
   </ItemGroup>
 </Project>
