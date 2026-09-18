@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\..\BuildingBlocks\Parking.Contracts\Parking.Contracts.csproj" />
@@ -9,6 +9,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>86ced2e4-08d4-4a63-8291-5c746bd1d2a9</UserSecretsId>
   </PropertyGroup>
 
 </Project>
