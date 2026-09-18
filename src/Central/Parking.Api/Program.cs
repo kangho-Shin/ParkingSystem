@@ -1,3 +1,4 @@
+using Parking.Api.Features.Configuration;
 using Parking.Api.Features.Entries;
 using Parking.Api.Features.Exits;
 using Parking.Central.Data;
@@ -16,12 +17,14 @@ namespace Parking.Api
 
             builder.Services.AddScoped<IParkingEventRepository>(_ => new ParkingEventRepository(connectionString));
             builder.Services.AddScoped<IParkingExitRepository>(_ => new ParkingExitRepository(connectionString));
+            builder.Services.AddScoped<ISiteConfigurationRepository>(_ => new SiteConfigurationRepository(connectionString));
             builder.Services.AddScoped<CreateEntryHandler>();
 
             WebApplication app = builder.Build();
             app.MapGet("/", () => "Parking API");
             app.MapCreateEntryEndpoint();
             app.MapExitEndpoints();
+            app.MapSiteConfigurationEndpoints();
             app.Run();
         }
     }
