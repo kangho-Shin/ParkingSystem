@@ -10,11 +10,14 @@ namespace Parking.Api
             WebApplicationBuilder builder =
                 WebApplication.CreateBuilder(args);
 
+            builder.Services.ConfigureHttpJsonOptions(options =>
+                options.SerializerOptions.PropertyNamingPolicy = null);
+
             builder.Services.AddScoped<IParkingEventRepository>(_ =>
                 new ParkingEventRepository(
                     builder.Configuration.GetConnectionString("ParkingDatabase")
                     ?? throw new InvalidOperationException(
-                        "ParkingDatabase ¿¬°á ¹®ÀÚ¿­ÀÌ ¾ø½À´Ï´Ù.")));
+                        "ParkingDatabase ì—°ê²° ë¬¸ìì—´ì´ ì—†ìŠµë‹ˆë‹¤.")));
 
             builder.Services.AddScoped<CreateEntryHandler>();
 
