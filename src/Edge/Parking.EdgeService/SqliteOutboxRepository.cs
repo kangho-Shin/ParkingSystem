@@ -1,54 +1,45 @@
-using System.Text.Json;
+using Dapper;
 using Microsoft.Data.Sqlite;
+using Newtonsoft.Json;
 using Parking.Contracts;
 
 namespace Parking.EdgeService
 {
     public sealed record OutboxMessage(Guid EventId, string EventType, string PayloadJson, int RetryCount);
+    internal sealed record OutboxRow(string EventId, string EventType, string PayloadJson, int RetryCount);
 
     public sealed class SqliteOutboxRepository
     {
         private readonly string _connectionString;
-        private readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = null };
         public SqliteOutboxRepository(string connectionString) { _connectionString = connectionString; }
 
         public async Task InitializeAsync(CancellationToken cancellationToken)
         {
+            const string sql = """
+                CREATE TABLE IF NOT EXISTS outbox_message (
+                    event_id TEXT NOT NULL PRIMARY KEY,
+                    event_type TEXT NOT NULL DEFAULT 'Entry',
+                    payload_json TEXT NOT NULL,
+                    state INTEGER NOT NULL DEFAULT 0,
+                    retry_count INTEGER NOT NULL DEFAULT 0,
+                    next_attempt_at_utc TEXT NOT NULL,
+                    created_at_utc TEXT NOT NULL,
+                    completed_at_utc TEXT NULL);
+                CREATE INDEX IF NOT EXISTS ix_outbox_pending
+                    ON outbox_message(state, next_attempt_at_utc, created_at_utc);
+                """;
             await using SqliteConnection connection = new(_connectionString);
-            await connection.OpenAsync(cancellationToken);
-            await using (SqliteCommand command = connection.CreateCommand())
-            {
-                command.CommandText = """
-                    CREATE TABLE IF NOT EXISTS outbox_message (
-                        event_id TEXT NOT NULL PRIMARY KEY,
-                        event_type TEXT NOT NULL DEFAULT 'Entry',
-                        payload_json TEXT NOT NULL,
-                        state INTEGER NOT NULL DEFAULT 0,
-                        retry_count INTEGER NOT NULL DEFAULT 0,
-                        next_attempt_at_utc TEXT NOT NULL,
-                        created_at_utc TEXT NOT NULL,
-                        completed_at_utc TEXT NULL);
-                    CREATE INDEX IF NOT EXISTS ix_outbox_pending
-                        ON outbox_message(state, next_attempt_at_utc, created_at_utc);
-                    """;
-                await command.ExecuteNonQueryAsync(cancellationToken);
-            }
+            await connection.ExecuteAsync(new CommandDefinition(sql, cancellationToken: cancellationToken));
 
-            bool hasEventType = false;
-            await using (SqliteCommand command = connection.CreateCommand())
-            {
-                command.CommandText = "PRAGMA table_info(outbox_message);";
-                await using SqliteDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
-                while (await reader.ReadAsync(cancellationToken))
-                    if (string.Equals(reader.GetString(1), "event_type", StringComparison.OrdinalIgnoreCase))
-                        hasEventType = true;
-            }
-            if (!hasEventType)
-            {
-                await using SqliteCommand command = connection.CreateCommand();
-                command.CommandText = "ALTER TABLE outbox_message ADD COLUMN event_type TEXT NOT NULL DEFAULT 'Entry';";
-                await command.ExecuteNonQueryAsync(cancellationToken);
-            }
+            IReadOnlyList<string> columns = (await connection.QueryAsync<string>(
+                new CommandDefinition(
+                    "SELECT name FROM pragma_table_info('outbox_message');",
+                    cancellationToken: cancellationToken))).AsList();
+
+            if (!columns.Contains("event_type", StringComparer.OrdinalIgnoreCase))
+                await connection.ExecuteAsync(new CommandDefinition(
+                    "ALTER TABLE outbox_message ADD COLUMN event_type TEXT NOT NULL DEFAULT 'Entry';",
+                    cancellationToken: cancellationToken));
         }
 
         public Task EnqueueEntryAsync(FieldEventRequest request, CancellationToken cancellationToken) =>
@@ -57,63 +48,67 @@ namespace Parking.EdgeService
         public Task EnqueueExitAsync(ExitEventRequest request, CancellationToken cancellationToken) =>
             EnqueueAsync(request.EventId, "Exit", request, cancellationToken);
 
-        private async Task EnqueueAsync<T>(Guid eventId, string eventType, T request, CancellationToken cancellationToken)
+        private async Task EnqueueAsync<T>(
+            Guid eventId, string eventType, T request, CancellationToken cancellationToken)
         {
-            await using SqliteConnection connection = new(_connectionString);
-            await connection.OpenAsync(cancellationToken);
-            await using SqliteCommand command = connection.CreateCommand();
-            command.CommandText = """
+            const string sql = """
                 INSERT OR IGNORE INTO outbox_message
                 (event_id,event_type,payload_json,next_attempt_at_utc,created_at_utc)
-                VALUES ($eventId,$eventType,$payload,$now,$now);
+                VALUES (@EventId,@EventType,@Payload,@Now,@Now);
                 """;
-            string now = DateTimeOffset.UtcNow.ToString("O");
-            command.Parameters.AddWithValue("$eventId", eventId.ToString("D"));
-            command.Parameters.AddWithValue("$eventType", eventType);
-            command.Parameters.AddWithValue("$payload", JsonSerializer.Serialize(request, _jsonOptions));
-            command.Parameters.AddWithValue("$now", now);
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            await using SqliteConnection connection = new(_connectionString);
+            await connection.ExecuteAsync(new CommandDefinition(sql, new
+            {
+                EventId = eventId.ToString("D"),
+                EventType = eventType,
+                Payload = JsonConvert.SerializeObject(request),
+                Now = DateTimeOffset.UtcNow.ToString("O")
+            }, cancellationToken: cancellationToken));
         }
 
-        public async Task<IReadOnlyList<OutboxMessage>> GetPendingAsync(int count, CancellationToken cancellationToken)
+        public async Task<IReadOnlyList<OutboxMessage>> GetPendingAsync(
+            int count, CancellationToken cancellationToken)
         {
-            List<OutboxMessage> messages = new();
-            await using SqliteConnection connection = new(_connectionString);
-            await connection.OpenAsync(cancellationToken);
-            await using SqliteCommand command = connection.CreateCommand();
-            command.CommandText = """
-                SELECT event_id,event_type,payload_json,retry_count FROM outbox_message
-                WHERE state=0 AND next_attempt_at_utc<=$now
-                ORDER BY created_at_utc LIMIT $count;
+            const string sql = """
+                SELECT event_id EventId,event_type EventType,payload_json PayloadJson,retry_count RetryCount
+                FROM outbox_message
+                WHERE state=0 AND next_attempt_at_utc<=@Now
+                ORDER BY created_at_utc LIMIT @Count;
                 """;
-            command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O"));
-            command.Parameters.AddWithValue("$count", count);
-            await using SqliteDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
-                messages.Add(new OutboxMessage(Guid.Parse(reader.GetString(0)), reader.GetString(1), reader.GetString(2), reader.GetInt32(3)));
-            return messages;
+            await using SqliteConnection connection = new(_connectionString);
+            IEnumerable<OutboxRow> rows = await connection.QueryAsync<OutboxRow>(
+                new CommandDefinition(sql, new
+                {
+                    Now = DateTimeOffset.UtcNow.ToString("O"),
+                    Count = count
+                }, cancellationToken: cancellationToken));
+
+            return rows.Select(x =>
+                new OutboxMessage(Guid.Parse(x.EventId), x.EventType, x.PayloadJson, x.RetryCount)).ToList();
         }
 
         public Task MarkCompletedAsync(Guid eventId, CancellationToken cancellationToken) =>
-            ExecuteAsync("UPDATE outbox_message SET state=1,completed_at_utc=$now WHERE event_id=$eventId;",
+            ExecuteAsync(
+                "UPDATE outbox_message SET state=1,completed_at_utc=@Now WHERE event_id=@EventId;",
                 eventId, DateTimeOffset.UtcNow, cancellationToken);
 
         public Task MarkFailedAsync(Guid eventId, int retryCount, CancellationToken cancellationToken)
         {
             int seconds = Math.Min(60, Math.Max(1, 1 << Math.Min(retryCount, 6)));
-            return ExecuteAsync("UPDATE outbox_message SET retry_count=retry_count+1,next_attempt_at_utc=$now WHERE event_id=$eventId;",
+            return ExecuteAsync(
+                "UPDATE outbox_message SET retry_count=retry_count+1,next_attempt_at_utc=@Now WHERE event_id=@EventId;",
                 eventId, DateTimeOffset.UtcNow.AddSeconds(seconds), cancellationToken);
         }
 
-        private async Task ExecuteAsync(string sql, Guid eventId, DateTimeOffset time, CancellationToken cancellationToken)
+        private async Task ExecuteAsync(
+            string sql, Guid eventId, DateTimeOffset time, CancellationToken cancellationToken)
         {
             await using SqliteConnection connection = new(_connectionString);
-            await connection.OpenAsync(cancellationToken);
-            await using SqliteCommand command = connection.CreateCommand();
-            command.CommandText = sql;
-            command.Parameters.AddWithValue("$eventId", eventId.ToString("D"));
-            command.Parameters.AddWithValue("$now", time.ToString("O"));
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            await connection.ExecuteAsync(new CommandDefinition(sql, new
+            {
+                EventId = eventId.ToString("D"),
+                Now = time.ToString("O")
+            }, cancellationToken: cancellationToken));
         }
     }
 }

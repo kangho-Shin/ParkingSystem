@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Newtonsoft.Json;
 using Parking.Contracts;
 
 namespace Parking.EdgeService
@@ -25,13 +25,13 @@ namespace Parking.EdgeService
                         FieldEventResponse response;
                         if (message.EventType == "Exit")
                         {
-                            ExitEventRequest request = JsonSerializer.Deserialize<ExitEventRequest>(message.PayloadJson)
+                            ExitEventRequest request = JsonConvert.DeserializeObject<ExitEventRequest>(message.PayloadJson)
                                 ?? throw new InvalidOperationException("출차 Outbox 데이터를 읽지 못했습니다.");
                             response = await _gatewayClient.SendExitAsync(request, stoppingToken);
                         }
                         else
                         {
-                            FieldEventRequest request = JsonSerializer.Deserialize<FieldEventRequest>(message.PayloadJson)
+                            FieldEventRequest request = JsonConvert.DeserializeObject<FieldEventRequest>(message.PayloadJson)
                                 ?? throw new InvalidOperationException("입차 Outbox 데이터를 읽지 못했습니다.");
                             response = await _gatewayClient.SendEntryAsync(request, stoppingToken);
                         }

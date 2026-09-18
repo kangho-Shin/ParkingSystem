@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+﻿using Newtonsoft.Json;
 using Dapper;
 using MySqlConnector;
 using Parking.Contracts;
@@ -63,7 +63,7 @@ public sealed class ParkingEventRepository : IParkingEventRepository
 
                 await transaction.CommitAsync(cancellationToken);
 
-                return JsonSerializer.Deserialize<FieldEventResponse>(resultJson)
+                return JsonConvert.DeserializeObject<FieldEventResponse>(resultJson)
                        ?? throw new InvalidOperationException("기존 처리결과를 읽지 못했습니다.");
             }
 
@@ -112,7 +112,7 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                     new
                     {
                         EventId = eventId,
-                        ResultJson = JsonSerializer.Serialize(response)
+                        ResultJson = JsonConvert.SerializeObject(response)
                     },
                     transaction,
                     cancellationToken: cancellationToken));

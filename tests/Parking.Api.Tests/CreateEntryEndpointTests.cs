@@ -1,5 +1,6 @@
 ﻿using System.Net;
-using System.Net.Http.Json;
+using System.Text;
+using Newtonsoft.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,11 +19,12 @@ public class CreateEntryEndpointTests
 
         FieldEventRequest request = new( Guid.NewGuid(), 1, 10,101,"12가3456",DateTimeOffset.UtcNow);
 
-        HttpResponseMessage response = await client.PostAsJsonAsync("/api/v1/parking/entries", request);
+        HttpResponseMessage response = await PostAsync(client, "/api/v1/parking/entries", request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        FieldEventResponse? result = await response.Content.ReadFromJsonAsync<FieldEventResponse>();
+        string json = await response.Content.ReadAsStringAsync();
+        FieldEventResponse? result = JsonConvert.DeserializeObject<FieldEventResponse>(json);
 
         Assert.NotNull(result);
         Assert.True(result.Accepted);
@@ -45,7 +47,7 @@ public class CreateEntryEndpointTests
             DateTimeOffset.UtcNow);
 
         HttpResponseMessage response =
-            await client.PostAsJsonAsync("/api/v1/parking/entries", request);
+            await PostAsync(client, "/api/v1/parking/entries", request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -68,9 +70,15 @@ public class CreateEntryEndpointTests
             DateTimeOffset.UtcNow);
 
         HttpResponseMessage response =
-            await client.PostAsJsonAsync("/api/v1/parking/entries", request);
+            await PostAsync(client, "/api/v1/parking/entries", request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    private static Task<HttpResponseMessage> PostAsync(HttpClient client, string uri, object value)
+    {
+        string json = JsonConvert.SerializeObject(value);
+        return client.PostAsync(uri, new StringContent(json, Encoding.UTF8, "application/json"));
     }
 
     private sealed class TestApplication : WebApplicationFactory<global::Parking.Api.Program>

@@ -1,5 +1,5 @@
-using System.Net.Http.Json;
-using System.Text.Json;
+using System.Text;
+using Newtonsoft.Json;
 using Parking.Contracts;
 
 namespace Parking.EdgeGateway
@@ -7,7 +7,6 @@ namespace Parking.EdgeGateway
     public sealed class ParkingApiClient
     {
         private readonly HttpClient _httpClient;
-        private readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = null };
         public ParkingApiClient(HttpClient httpClient) { _httpClient = httpClient; }
 
         public Task<FieldEventResponse> SendAsync(FieldEventRequest request, CancellationToken cancellationToken) =>
@@ -16,22 +15,26 @@ namespace Parking.EdgeGateway
         public Task<FieldEventResponse> SendExitAsync(ExitEventRequest request, CancellationToken cancellationToken) =>
             PostAsync<ExitEventRequest, FieldEventResponse>("api/v1/parking/exits", request, cancellationToken);
 
-        public async Task<SiteConfiguration> GetSiteConfigurationAsync(long siteId, CancellationToken cancellationToken)
+        public async Task<SiteConfiguration> GetSiteConfigurationAsync(
+            long siteId, CancellationToken cancellationToken)
         {
             using HttpResponseMessage response =
                 await _httpClient.GetAsync($"api/v1/config/sites/{siteId}", cancellationToken);
             response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<SiteConfiguration>(_jsonOptions, cancellationToken)
+            string json = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonConvert.DeserializeObject<SiteConfiguration>(json)
                 ?? throw new InvalidOperationException("현장 설정 응답이 없습니다.");
         }
 
         private async Task<TResponse> PostAsync<TRequest, TResponse>(
             string uri, TRequest request, CancellationToken cancellationToken)
         {
-            using HttpResponseMessage response =
-                await _httpClient.PostAsJsonAsync(uri, request, _jsonOptions, cancellationToken);
+            string json = JsonConvert.SerializeObject(request);
+            using StringContent content = new(json, Encoding.UTF8, "application/json");
+            using HttpResponseMessage response = await _httpClient.PostAsync(uri, content, cancellationToken);
             response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<TResponse>(_jsonOptions, cancellationToken)
+            string responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonConvert.DeserializeObject<TResponse>(responseJson)
                 ?? throw new InvalidOperationException("Parking.Api 응답이 없습니다.");
         }
     }

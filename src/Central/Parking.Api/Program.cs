@@ -1,6 +1,5 @@
-using Parking.Api.Features.Configuration;
+using Newtonsoft.Json.Serialization;
 using Parking.Api.Features.Entries;
-using Parking.Api.Features.Exits;
 using Parking.Central.Data;
 
 namespace Parking.Api
@@ -10,7 +9,8 @@ namespace Parking.Api
         public static void Main(string[] args)
         {
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-            builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.PropertyNamingPolicy = null);
+            builder.Services.AddControllers().AddNewtonsoftJson(options =>
+                options.SerializerSettings.ContractResolver = new DefaultContractResolver());
 
             string connectionString = builder.Configuration.GetConnectionString("ParkingDatabase")
                 ?? throw new InvalidOperationException("ParkingDatabase 연결 문자열이 없습니다.");
@@ -22,9 +22,7 @@ namespace Parking.Api
 
             WebApplication app = builder.Build();
             app.MapGet("/", () => "Parking API");
-            app.MapCreateEntryEndpoint();
-            app.MapExitEndpoints();
-            app.MapSiteConfigurationEndpoints();
+            app.MapControllers();
             app.Run();
         }
     }

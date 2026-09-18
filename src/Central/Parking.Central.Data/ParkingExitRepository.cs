@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Newtonsoft.Json;
 using Dapper;
 using MySqlConnector;
 using Parking.Contracts;
@@ -50,7 +50,7 @@ public sealed class ParkingExitRepository : IParkingExitRepository
                     "SELECT result_json FROM parking_event WHERE event_id=@EventId;",
                     new { EventId = eventId }, transaction, cancellationToken: cancellationToken));
                 await transaction.CommitAsync(cancellationToken);
-                return JsonSerializer.Deserialize<FieldEventResponse>(json)
+                return JsonConvert.DeserializeObject<FieldEventResponse>(json)
                     ?? throw new InvalidOperationException("기존 출차결과를 읽지 못했습니다.");
             }
 
@@ -78,7 +78,7 @@ public sealed class ParkingExitRepository : IParkingExitRepository
 
             await connection.ExecuteAsync(new CommandDefinition(
                 "UPDATE parking_event SET result_json=@ResultJson WHERE event_id=@EventId;",
-                new { EventId = eventId, ResultJson = JsonSerializer.Serialize(result) },
+                new { EventId = eventId, ResultJson = JsonConvert.SerializeObject(result) },
                 transaction, cancellationToken: cancellationToken));
             await transaction.CommitAsync(cancellationToken);
             return result;

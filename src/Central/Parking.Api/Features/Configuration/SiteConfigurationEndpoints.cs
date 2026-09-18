@@ -1,44 +1,51 @@
+using Microsoft.AspNetCore.Mvc;
 using Parking.Central.Data;
 using Parking.Contracts;
 
 namespace Parking.Api.Features.Configuration
 {
-    public static class SiteConfigurationEndpoints
+    [ApiController]
+    [Route("api/v1/config")]
+    public sealed class SiteConfigurationController : ControllerBase
     {
-        public static void MapSiteConfigurationEndpoints(this IEndpointRouteBuilder endpoints)
+        private readonly ISiteConfigurationRepository _repository;
+        public SiteConfigurationController(ISiteConfigurationRepository repository) { _repository = repository; }
+
+        [HttpGet("sites/{siteId:long}")]
+        public async Task<IActionResult> GetAsync(long siteId, CancellationToken cancellationToken)
         {
-            endpoints.MapGet("/api/v1/config/sites/{siteId:long}", async (
-                long siteId, ISiteConfigurationRepository repository, CancellationToken cancellationToken) =>
-            {
-                SiteConfiguration? configuration = await repository.GetAsync(siteId, cancellationToken);
-                return configuration is null ? Results.NotFound() : Results.Ok(configuration);
-            });
+            SiteConfiguration? configuration = await _repository.GetAsync(siteId, cancellationToken);
+            return configuration is null ? NotFound() : Ok(configuration);
+        }
 
-            endpoints.MapPut("/api/v1/config/sites/{siteId:long}", async (
-                long siteId, ParkingSite site, ISiteConfigurationRepository repository, CancellationToken cancellationToken) =>
-            {
-                if (siteId != site.SiteId || siteId <= 0) return Results.BadRequest();
-                await repository.SaveSiteAsync(site, cancellationToken);
-                return Results.NoContent();
-            });
+        [HttpPut("sites/{siteId:long}")]
+        public async Task<IActionResult> SaveSiteAsync(
+            long siteId, [FromBody] ParkingSite site, CancellationToken cancellationToken)
+        {
+            if (siteId != site.SiteId || siteId <= 0) return BadRequest();
+            await _repository.SaveSiteAsync(site, cancellationToken);
+            return NoContent();
+        }
 
-            endpoints.MapPut("/api/v1/config/lanes/{laneId:long}", async (
-                long laneId, ParkingLane lane, ISiteConfigurationRepository repository, CancellationToken cancellationToken) =>
-            {
-                if (laneId != lane.LaneId || laneId <= 0 || lane.SiteId <= 0 || lane.GroupNumber <= 0)
-                    return Results.BadRequest();
-                await repository.SaveLaneAsync(lane, cancellationToken);
-                return Results.NoContent();
-            });
+        [HttpPut("lanes/{laneId:long}")]
+        public async Task<IActionResult> SaveLaneAsync(
+            long laneId, [FromBody] ParkingLane lane, CancellationToken cancellationToken)
+        {
+            if (laneId != lane.LaneId || laneId <= 0 || lane.SiteId <= 0 || lane.GroupNumber <= 0)
+                return BadRequest();
+            await _repository.SaveLaneAsync(lane, cancellationToken);
+            return NoContent();
+        }
 
-            endpoints.MapPut("/api/v1/config/devices/{deviceId:long}", async (
-                long deviceId, ParkingDevice device, ISiteConfigurationRepository repository, CancellationToken cancellationToken) =>
-            {
-                if (deviceId != device.DeviceId || deviceId <= 0 || device.SiteId <= 0 || device.DeviceNumber <= 0)
-                    return Results.BadRequest();
-                await repository.SaveDeviceAsync(device, cancellationToken);
-                return Results.NoContent();
-            });
+        [HttpPut("devices/{deviceId:long}")]
+        public async Task<IActionResult> SaveDeviceAsync(
+            long deviceId, [FromBody] ParkingDevice device, CancellationToken cancellationToken)
+        {
+            if (deviceId != device.DeviceId || deviceId <= 0 ||
+                device.SiteId <= 0 || device.DeviceNumber <= 0)
+                return BadRequest();
+            await _repository.SaveDeviceAsync(device, cancellationToken);
+            return NoContent();
         }
     }
 }

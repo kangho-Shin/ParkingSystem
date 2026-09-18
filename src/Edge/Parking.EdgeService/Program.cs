@@ -1,4 +1,4 @@
-using Parking.Contracts;
+using Newtonsoft.Json.Serialization;
 
 namespace Parking.EdgeService
 {
@@ -8,7 +8,8 @@ namespace Parking.EdgeService
         {
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
             builder.Host.UseWindowsService(options => options.ServiceName = "Parking Edge Service");
-            builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.PropertyNamingPolicy = null);
+            builder.Services.AddControllers().AddNewtonsoftJson(options =>
+                options.SerializerSettings.ContractResolver = new DefaultContractResolver());
 
             string? configuredDataDirectory = builder.Configuration["Edge:DataDirectory"];
             string dataDirectory = string.IsNullOrWhiteSpace(configuredDataDirectory)
@@ -31,24 +32,13 @@ namespace Parking.EdgeService
             builder.Services.AddHostedService<ConfigurationSyncWorker>();
 
             WebApplication app = builder.Build();
-            SqliteOutboxRepository outbox = app.Services.GetRequiredService<SqliteOutboxRepository>();
-            LocalConfigurationStore configurationStore = app.Services.GetRequiredService<LocalConfigurationStore>();
-            outbox.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
-            configurationStore.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+            app.Services.GetRequiredService<SqliteOutboxRepository>()
+                .InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+            app.Services.GetRequiredService<LocalConfigurationStore>()
+                .InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
 
             app.MapGet("/", () => "Parking Edge Service");
-            app.MapGet("/api/v1/local/config", async (IConfiguration configuration, CancellationToken cancellationToken) =>
-            {
-                long siteId = configuration.GetValue<long>("Edge:SiteId");
-                SiteConfiguration? result = await configurationStore.GetAsync(siteId, cancellationToken);
-                return result is null ? Results.NotFound() : Results.Ok(result);
-            });
-            app.MapPost("/api/v1/edge/events", async (
-                FieldEventRequest request, EdgeEventService service, CancellationToken cancellationToken) =>
-                Results.Ok(await service.AcceptEntryAsync(request, cancellationToken)));
-            app.MapPost("/api/v1/edge/exits", async (
-                ExitEventRequest request, EdgeEventService service, CancellationToken cancellationToken) =>
-                Results.Ok(await service.AcceptExitAsync(request, cancellationToken)));
+            app.MapControllers();
             app.Run();
         }
     }
