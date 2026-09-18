@@ -10,8 +10,10 @@ namespace Parking.EdgeService
             builder.Host.UseWindowsService(options => options.ServiceName = "Parking Edge Service");
             builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.PropertyNamingPolicy = null);
 
-            string dataDirectory = builder.Configuration["Edge:DataDirectory"]
-                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ParkingSystem");
+            string? configuredDataDirectory = builder.Configuration["Edge:DataDirectory"];
+            string dataDirectory = string.IsNullOrWhiteSpace(configuredDataDirectory)
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ParkingSystem")
+                : configuredDataDirectory;
             Directory.CreateDirectory(dataDirectory);
 
             builder.Services.AddSingleton(new SqliteOutboxRepository($"Data Source={Path.Combine(dataDirectory, "edge.db")}"));
