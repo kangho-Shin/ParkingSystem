@@ -7,7 +7,6 @@ namespace Parking.EdgeService
     {
         private readonly SqliteOutboxRepository _outbox;
         private readonly GatewayClient _gatewayClient;
-
         public OutboxWorker(SqliteOutboxRepository outbox, GatewayClient gatewayClient)
         {
             _outbox = outbox;
@@ -23,10 +22,22 @@ namespace Parking.EdgeService
                 {
                     try
                     {
-                        FieldEventRequest request = JsonSerializer.Deserialize<FieldEventRequest>(message.PayloadJson)
-                            ?? throw new InvalidOperationException("Outbox 데이터를 읽지 못했습니다.");
-                        FieldEventResponse response = await _gatewayClient.SendAsync(request, stoppingToken);
-                        if (response.EventId != message.EventId) throw new InvalidOperationException("응답 EventId가 다릅니다.");
+                        FieldEventResponse response;
+                        if (message.EventType == "Exit")
+                        {
+                            ExitEventRequest request = JsonSerializer.Deserialize<ExitEventRequest>(message.PayloadJson)
+                                ?? throw new InvalidOperationException("출차 Outbox 데이터를 읽지 못했습니다.");
+                            response = await _gatewayClient.SendExitAsync(request, stoppingToken);
+                        }
+                        else
+                        {
+                            FieldEventRequest request = JsonSerializer.Deserialize<FieldEventRequest>(message.PayloadJson)
+                                ?? throw new InvalidOperationException("입차 Outbox 데이터를 읽지 못했습니다.");
+                            response = await _gatewayClient.SendEntryAsync(request, stoppingToken);
+                        }
+
+                        if (response.EventId != message.EventId)
+                            throw new InvalidOperationException("응답 EventId가 다릅니다.");
                         await _outbox.MarkCompletedAsync(message.EventId, stoppingToken);
                     }
                     catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }

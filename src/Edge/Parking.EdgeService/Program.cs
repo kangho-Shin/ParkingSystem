@@ -31,7 +31,12 @@ namespace Parking.EdgeService
             app.MapGet("/", () => "Parking Edge Service");
             app.MapPost("/api/v1/edge/events", async (FieldEventRequest request, CancellationToken cancellationToken) =>
             {
-                await outbox.EnqueueAsync(request, cancellationToken);
+                await outbox.EnqueueEntryAsync(request, cancellationToken);
+                return Results.Accepted(value: new { request.EventId, Queued = true });
+            });
+            app.MapPost("/api/v1/edge/exits", async (ExitEventRequest request, CancellationToken cancellationToken) =>
+            {
+                await outbox.EnqueueExitAsync(request, cancellationToken);
                 return Results.Accepted(value: new { request.EventId, Queued = true });
             });
             app.Run();
