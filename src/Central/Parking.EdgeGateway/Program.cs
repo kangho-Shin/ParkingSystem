@@ -28,6 +28,14 @@ namespace Parking.EdgeGateway
                 ExitEventRequest request, FieldEventRelay relay, CancellationToken cancellationToken) =>
                 await RelayAsync(() => relay.RelayExitAsync(request, cancellationToken)));
 
+            app.MapGet("/api/v1/edge/config/sites/{siteId:long}", async (
+                long siteId, ParkingApiClient client, CancellationToken cancellationToken) =>
+            {
+                try { return Results.Ok(await client.GetSiteConfigurationAsync(siteId, cancellationToken)); }
+                catch (HttpRequestException) { return Results.StatusCode(StatusCodes.Status503ServiceUnavailable); }
+                catch (TaskCanceledException) { return Results.StatusCode(StatusCodes.Status503ServiceUnavailable); }
+            });
+
             app.Run();
         }
 
