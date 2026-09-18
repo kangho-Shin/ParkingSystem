@@ -1,4 +1,4 @@
-﻿using MySqlConnector;
+using MySqlConnector;
 using Parking.Central.Data;
 using Parking.Contracts;
 
@@ -6,7 +6,10 @@ namespace Parking.Api.Tests;
 
 public class ParkingEventRepositoryTests
 {
-    private const string ConnectionString ="Server=localhost;Database=parking_test;User ID=root;Password=!@Jpisys1004;";
+    private static string ConnectionString =>
+        Environment.GetEnvironmentVariable("PARKING_TEST_CONNECTION")
+        ?? throw new InvalidOperationException(
+            "PARKING_TEST_CONNECTION 환경변수가 없습니다.");
 
     [Fact]
     public async Task 같은_EventId는_주차내역을_중복생성하지_않는다()
