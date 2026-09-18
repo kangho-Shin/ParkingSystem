@@ -8,6 +8,9 @@ public sealed class ParkingFeeConfiguration
     public IReadOnlyDictionary<DayOfWeek, DayTimeRange> DayTimeRanges { get; init; } =
         new Dictionary<DayOfWeek, DayTimeRange>();
     public int MaxDailyFee { get; init; }
+    public int GraceTime { get; init; }
+    public int PrepayGraceTime { get; init; }
+    public int ServiceTime { get; init; }
     public int TimeDiscountApplyType { get; init; } = 1;
     public bool ExcludeWeekend { get; init; }
     public bool ExcludeHoliday { get; init; }
