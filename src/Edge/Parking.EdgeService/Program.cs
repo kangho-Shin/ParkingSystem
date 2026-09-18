@@ -26,6 +26,7 @@ namespace Parking.EdgeService
                 client.BaseAddress = new Uri(builder.Configuration["Gateway:BaseUrl"] ?? "http://localhost:5100/");
                 client.Timeout = TimeSpan.FromSeconds(10);
             });
+            builder.Services.AddScoped<EdgeEventService>();
             builder.Services.AddHostedService<OutboxWorker>();
             builder.Services.AddHostedService<ConfigurationSyncWorker>();
 
@@ -42,16 +43,12 @@ namespace Parking.EdgeService
                 SiteConfiguration? result = await configurationStore.GetAsync(siteId, cancellationToken);
                 return result is null ? Results.NotFound() : Results.Ok(result);
             });
-            app.MapPost("/api/v1/edge/events", async (FieldEventRequest request, CancellationToken cancellationToken) =>
-            {
-                await outbox.EnqueueEntryAsync(request, cancellationToken);
-                return Results.Accepted(value: new { request.EventId, Queued = true });
-            });
-            app.MapPost("/api/v1/edge/exits", async (ExitEventRequest request, CancellationToken cancellationToken) =>
-            {
-                await outbox.EnqueueExitAsync(request, cancellationToken);
-                return Results.Accepted(value: new { request.EventId, Queued = true });
-            });
+            app.MapPost("/api/v1/edge/events", async (
+                FieldEventRequest request, EdgeEventService service, CancellationToken cancellationToken) =>
+                Results.Ok(await service.AcceptEntryAsync(request, cancellationToken)));
+            app.MapPost("/api/v1/edge/exits", async (
+                ExitEventRequest request, EdgeEventService service, CancellationToken cancellationToken) =>
+                Results.Ok(await service.AcceptExitAsync(request, cancellationToken)));
             app.Run();
         }
     }
