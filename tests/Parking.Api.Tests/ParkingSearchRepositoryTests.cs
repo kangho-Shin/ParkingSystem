@@ -32,7 +32,7 @@ public sealed class ParkingSearchRepositoryTests
         Assert.Equal("IN-2.jpg", suffixResult[0].InImage);
         Assert.Single(exactResult);
         Assert.Equal(firstId, exactResult[0].ParkingSessionId);
-        Assert.Equal(2, await CountInProgressAsync());
+        Assert.Equal(2, await CountInProgressAsync([firstId, secondId]));
     }
 
     private static async Task ClearTablesAsync()
@@ -72,10 +72,11 @@ public sealed class ParkingSearchRepositoryTests
         });
     }
 
-    private static async Task<long> CountInProgressAsync()
+    private static async Task<long> CountInProgressAsync(long[] parkingSessionIds)
     {
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<long>(
-            "SELECT COUNT(*) FROM parking_session WHERE outflag='I';");
+            "SELECT COUNT(*) FROM parking_session WHERE xindex IN @ParkingSessionIds AND outflag='I';",
+            new { ParkingSessionIds = parkingSessionIds });
     }
 }
