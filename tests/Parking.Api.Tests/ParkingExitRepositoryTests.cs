@@ -17,17 +17,12 @@ public sealed class ParkingExitRepositoryTests
     {
         string carNumber = $"TEST{Guid.NewGuid():N}"[..20];
         long parkingSessionId = await CreateSessionAsync(carNumber, "Entered");
-        ExitEventRequest request = new(
-            Guid.NewGuid(),
-            1,
-            20,
-            201,
-            carNumber,
-            DateTimeOffset.UtcNow);
+        ExitEventRequest request = CreateRequest(carNumber);
         ParkingExitRepository repository = new(ConnectionString);
 
         FieldEventResponse result = await repository.SaveExitAsync(
             request,
+            false,
             CancellationToken.None);
 
         Assert.False(result.Accepted);
@@ -35,6 +30,49 @@ public sealed class ParkingExitRepositoryTests
         Assert.Equal("PAYMENT_REQUIRED", result.ResultCode);
         Assert.Equal("Entered", await GetSessionStatusAsync(parkingSessionId));
     }
+
+    [Fact]
+    public async Task 계산요금이_0원이면_미결제_차량도_출차를_허용한다()
+    {
+        string carNumber = $"TEST{Guid.NewGuid():N}"[..20];
+        long parkingSessionId = await CreateSessionAsync(carNumber, "Entered");
+        ParkingExitRepository repository = new(ConnectionString);
+
+        FieldEventResponse result = await repository.SaveExitAsync(
+            CreateRequest(carNumber),
+            true,
+            CancellationToken.None);
+
+        Assert.True(result.Accepted);
+        Assert.True(result.OpenBarrier);
+        Assert.Equal("EXIT_ACCEPTED", result.ResultCode);
+        Assert.Equal("Exited", await GetSessionStatusAsync(parkingSessionId));
+    }
+
+    [Fact]
+    public async Task 결제완료_차량은_출차를_허용한다()
+    {
+        string carNumber = $"TEST{Guid.NewGuid():N}"[..20];
+        long parkingSessionId = await CreateSessionAsync(carNumber, "Paid");
+        ParkingExitRepository repository = new(ConnectionString);
+
+        FieldEventResponse result = await repository.SaveExitAsync(
+            CreateRequest(carNumber),
+            false,
+            CancellationToken.None);
+
+        Assert.True(result.Accepted);
+        Assert.True(result.OpenBarrier);
+        Assert.Equal("Exited", await GetSessionStatusAsync(parkingSessionId));
+    }
+
+    private static ExitEventRequest CreateRequest(string carNumber) => new(
+        Guid.NewGuid(),
+        1,
+        20,
+        201,
+        carNumber,
+        DateTimeOffset.UtcNow);
 
     private static async Task<long> CreateSessionAsync(string carNumber, string status)
     {

@@ -15,6 +15,12 @@ internal sealed class OpenParkingSessionRow
     public string Status { get; set; } = "";
 }
 
+internal sealed class ExitParkingSessionRow
+{
+    public long ParkingSessionId { get; set; }
+    public string Status { get; set; } = "";
+}
+
 public sealed class ParkingExitRepository : IParkingExitRepository
 {
     private readonly string _connectionString;
@@ -49,7 +55,10 @@ public sealed class ParkingExitRepository : IParkingExitRepository
             row.Status);
     }
 
-    public async Task<FieldEventResponse> SaveExitAsync(ExitEventRequest request, CancellationToken cancellationToken)
+    public async Task<FieldEventResponse> SaveExitAsync(
+        ExitEventRequest request,
+        bool isFreeExit,
+        CancellationToken cancellationToken)
     {
         await using MySqlConnection connection = new(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -79,16 +88,27 @@ public sealed class ParkingExitRepository : IParkingExitRepository
                     ?? throw new InvalidOperationException("기존 출차결과를 읽지 못했습니다.");
             }
 
-            long? sessionId = await connection.QuerySingleOrDefaultAsync<long?>(new CommandDefinition("""
-                SELECT parking_session_id FROM parking_session
+            ExitParkingSessionRow? session = await connection.QuerySingleOrDefaultAsync<ExitParkingSessionRow>(new CommandDefinition("""
+                SELECT parking_session_id ParkingSessionId, status Status
+                FROM parking_session
                 WHERE site_id=@SiteId AND car_number=@CarNumber AND status<>'Exited'
                 ORDER BY entry_at_utc DESC LIMIT 1 FOR UPDATE;
                 """, new { request.SiteId, request.CarNumber }, transaction, cancellationToken: cancellationToken));
 
             FieldEventResponse result;
-            if (sessionId is null)
+            if (session is null)
             {
                 result = new FieldEventResponse(request.EventId, false, null, "OPEN_SESSION_NOT_FOUND", "미출차 차량이 없습니다.", false);
+            }
+            else if (session.Status != "Paid" && !isFreeExit)
+            {
+                result = new FieldEventResponse(
+                    request.EventId,
+                    false,
+                    session.ParkingSessionId,
+                    "PAYMENT_REQUIRED",
+                    "결제가 필요합니다.",
+                    false);
             }
             else
             {
@@ -96,9 +116,9 @@ public sealed class ParkingExitRepository : IParkingExitRepository
                     UPDATE parking_session SET exit_event_id=@EventId, exit_lane_id=@LaneId,
                     exit_at_utc=@OccurredAtUtc, status='Exited'
                     WHERE parking_session_id=@ParkingSessionId;
-                    """, new { EventId = eventId, request.LaneId, OccurredAtUtc = request.OccurredAt.UtcDateTime, ParkingSessionId = sessionId.Value },
+                    """, new { EventId = eventId, request.LaneId, OccurredAtUtc = request.OccurredAt.UtcDateTime, session.ParkingSessionId },
                     transaction, cancellationToken: cancellationToken));
-                result = new FieldEventResponse(request.EventId, true, sessionId, "EXIT_ACCEPTED", "출차되었습니다.", true);
+                result = new FieldEventResponse(request.EventId, true, session.ParkingSessionId, "EXIT_ACCEPTED", "출차되었습니다.", true);
             }
 
             await connection.ExecuteAsync(new CommandDefinition(

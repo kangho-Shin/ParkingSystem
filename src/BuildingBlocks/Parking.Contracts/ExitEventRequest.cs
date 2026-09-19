@@ -6,4 +6,7 @@ public sealed record ExitEventRequest(
     long LaneId,
     long DeviceId,
     string CarNumber,
-    DateTimeOffset OccurredAt);
+    DateTimeOffset OccurredAt,
+    int Groupnum = 1,
+    int CarType = 1,
+    List<int>? DiscountKeys = null);
