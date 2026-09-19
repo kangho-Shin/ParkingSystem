@@ -50,6 +50,7 @@
 - 최종 결제금액 0원 또는 결제완료 시 `outflag=X` 처리
 - 검색·선택견적의 EdgeService→Gateway→API 중계 구현
 - Simulator 입차·출차 `EventType`, 이미지명 생성 구현
+- 동일차량 10초 중복입차 재사용과 이전 I/X 상태 정리 구현
 
 ## 3. 실제 통합시험 완료 내용
 
@@ -90,7 +91,6 @@
 - 등록차량 `tperiodinout` 입차 생성·출차 업데이트
 - 등록차량과 일반차량의 차량검색 결과 통합
 - 이미지 파일 자체의 중앙 전송상태와 재전송
-- 짧은 시간 내 동일 차량 중복입차 방지
 
 상세 내용은 [입출차 및 차량 이미지 설계](05-entry-exit-image-design.md)를 따른다.
 
@@ -98,8 +98,7 @@
 
 1. 등록차량 운영 스키마 확인 후 `tperiodinout` 연동
 2. 이미지 파일 전송 Outbox 구현
-3. 짧은 시간 동일차량 중복입차 방지
-4. `Parking.EdgeManager` 최소 기능
+3. `Parking.EdgeManager` 최소 기능
 6. 실제 LPR 결과 입력 계약과 차로 처리기
 7. 가상 전광판·차단기 출력
 8. 기존 LPR 프로그램을 `Parking.LprHost` 구조로 개편
