@@ -90,7 +90,7 @@ public sealed class MainForm : Form, IEdgeManagerView
                 lanes.Nodes.Add($"{lane.LaneId} / 그룹 {lane.GroupNumber} / {lane.LaneName} / {lane.Direction}");
             TreeNode devices = site.Nodes.Add("장비");
             foreach (ParkingDevice device in configuration.Devices)
-                devices.Nodes.Add($"{device.DeviceId} / {device.DeviceType} / {device.DeviceName} / {device.IpAddress}");
+                devices.Nodes.Add($"{device.DeviceId} / {device.DeviceType} / {device.DeviceName} / {device.IpAddress}:{device.Port}");
             site.Expand();
             lanes.Expand();
             devices.Expand();
