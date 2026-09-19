@@ -30,6 +30,7 @@ namespace Parking.EdgeService
             });
             builder.Services.AddScoped<EdgeEventService>();
             builder.Services.AddScoped<PaymentRelayService>();
+            builder.Services.AddScoped<EdgeManagementService>();
             builder.Services.AddHostedService<OutboxWorker>();
             builder.Services.AddHostedService<ConfigurationSyncWorker>();
 
