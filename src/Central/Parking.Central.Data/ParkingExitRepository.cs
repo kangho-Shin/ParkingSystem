@@ -46,6 +46,51 @@ public sealed class ParkingExitRepository : IParkingExitRepository
                 new { SiteId = siteId, CarNumber = carNumber },
                 cancellationToken: cancellationToken));
 
+        return ToResponse(row);
+    }
+
+    public async Task<OpenParkingSessionResponse?> FindOpenByIdAsync(
+        long parkingSessionId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT xindex ParkingSessionId, sitenum SiteId, carnum CarNumber,
+                   groupnum Groupnum, cartype CarType, inlaneid EntryLaneId,
+                   indate EntryAt, paydate Paydate, outflag Status
+            FROM parking_session
+            WHERE xindex=@ParkingSessionId AND outflag<>'O';
+            """;
+        await using MySqlConnection connection = new(_connectionString);
+        OpenParkingSessionRow? row = await connection.QuerySingleOrDefaultAsync<OpenParkingSessionRow>(
+            new CommandDefinition(
+                sql,
+                new { ParkingSessionId = parkingSessionId },
+                cancellationToken: cancellationToken));
+
+        return ToResponse(row);
+    }
+
+    public async Task MarkSettledAsync(
+        long parkingSessionId,
+        DateTimeOffset settledAt,
+        CancellationToken cancellationToken)
+    {
+        await using MySqlConnection connection = new(_connectionString);
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE parking_session
+            SET outflag='X', paydate=@SettledAtUtc
+            WHERE xindex=@ParkingSessionId AND outflag='I';
+            """,
+            new
+            {
+                ParkingSessionId = parkingSessionId,
+                SettledAtUtc = settledAt.UtcDateTime
+            },
+            cancellationToken: cancellationToken));
+    }
+
+    private static OpenParkingSessionResponse? ToResponse(OpenParkingSessionRow? row)
+    {
         if (row is null)
             return null;
 
