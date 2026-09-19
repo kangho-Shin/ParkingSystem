@@ -6,7 +6,9 @@ public sealed record ExitEventRequest(
     long LaneId,
     long DeviceId,
     string CarNumber,
-    DateTimeOffset OccurredAt,
+    DateTimeOffset OutDateTime,
     int Groupnum = 1,
     int CarType = 1,
-    List<int>? DiscountKeys = null);
+    List<int>? DiscountKeys = null,
+    string EventType = ParkingEventType.Exit,
+    string? OutImage = null);
