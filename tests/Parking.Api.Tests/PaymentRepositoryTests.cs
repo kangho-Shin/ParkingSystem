@@ -45,8 +45,8 @@ public sealed class PaymentRepositoryTests
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<long>("""
             INSERT INTO parking_session
-            (site_id,entry_event_id,car_number,entry_lane_id,entry_at_utc,status)
-            VALUES (1,@EntryEventId,'12가3456',10,UTC_TIMESTAMP(6),'Entered');
+            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,status)
+            VALUES (1,@EntryEventId,'12가3456',1,1,10,UTC_TIMESTAMP(6),'Entered');
             SELECT LAST_INSERT_ID();
             """, new { EntryEventId = Guid.NewGuid().ToByteArray() });
     }
@@ -55,7 +55,7 @@ public sealed class PaymentRepositoryTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<long>(
-            "SELECT COUNT(*) FROM payment WHERE parking_session_id=@ParkingSessionId;",
+            "SELECT COUNT(*) FROM payment WHERE parkindex=@ParkingSessionId;",
             new { ParkingSessionId = parkingSessionId });
     }
 
@@ -63,7 +63,7 @@ public sealed class PaymentRepositoryTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<string>(
-            "SELECT status FROM parking_session WHERE parking_session_id=@ParkingSessionId;",
+            "SELECT status FROM parking_session WHERE xindex=@ParkingSessionId;",
             new { ParkingSessionId = parkingSessionId });
     }
 }

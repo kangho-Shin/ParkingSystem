@@ -28,8 +28,8 @@ public sealed class ParkingEventRepository : IParkingEventRepository
 
             const string insertEventSql = """
                 INSERT IGNORE INTO parking_event
-                (event_id, site_id, lane_id, device_id, event_type,
-                 car_number, occurred_at_utc)
+                (eventid, sitenum, laneid, deviceid, eventtype,
+                 carnum, eventat)
                 VALUES
                 (@EventId, @SiteId, @LaneId, @DeviceId, 'Entry',
                  @CarNumber, @OccurredAtUtc);
@@ -52,7 +52,7 @@ public sealed class ParkingEventRepository : IParkingEventRepository
 
             if (inserted == 0) {
                 const string resultSql =
-                    "SELECT result_json FROM parking_event WHERE event_id=@EventId;";
+                    "SELECT resultjson FROM parking_event WHERE eventid=@EventId;";
 
                 string resultJson = await connection.QuerySingleAsync<string>(
                     new CommandDefinition(
@@ -69,10 +69,13 @@ public sealed class ParkingEventRepository : IParkingEventRepository
 
             const string insertSessionSql = """
                 INSERT INTO parking_session
-                (site_id, entry_event_id, car_number, entry_lane_id,
-                 entry_at_utc, status)
+                (sitenum, ineventid, carnum, groupnum, cartype, inlaneid,
+                 indate, status)
                 VALUES
-                (@SiteId, @EventId, @CarNumber, @LaneId,
+                (@SiteId, @EventId, @CarNumber,
+                 COALESCE((SELECT groupnum FROM parking_lane
+                           WHERE sitenum=@SiteId AND laneid=@LaneId), 1),
+                 1, @LaneId,
                  @OccurredAtUtc, 'Entered');
 
                 SELECT LAST_INSERT_ID();
@@ -102,8 +105,8 @@ public sealed class ParkingEventRepository : IParkingEventRepository
 
             const string updateResultSql = """
                 UPDATE parking_event
-                SET result_json=@ResultJson
-                WHERE event_id=@EventId;
+                SET resultjson=@ResultJson
+                WHERE eventid=@EventId;
                 """;
 
             await connection.ExecuteAsync(

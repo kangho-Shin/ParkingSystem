@@ -60,9 +60,9 @@ public sealed class PaymentRepository : IPaymentRepository
 
             PaymentSessionRow? session = await connection.QuerySingleOrDefaultAsync<PaymentSessionRow>(
                 new CommandDefinition("""
-                    SELECT site_id SiteId, status Status
+                    SELECT sitenum SiteId, status Status
                     FROM parking_session
-                    WHERE parking_session_id=@ParkingSessionId
+                    WHERE xindex=@ParkingSessionId
                     FOR UPDATE;
                     """,
                     new { request.ParkingSessionId },
@@ -97,8 +97,8 @@ public sealed class PaymentRepository : IPaymentRepository
 
             await connection.ExecuteAsync(new CommandDefinition("""
                 INSERT INTO payment
-                (payment_id,parking_session_id,site_id,original_fee,discount_fee,
-                 paid_amount,payment_method,approval_number,terminal_id,paid_at_utc)
+                (paymentid,parkindex,sitenum,originalfee,discountfee,
+                 payamount,paymethod,approvalnum,terminalid,paydate)
                 VALUES
                 (@PaymentId,@ParkingSessionId,@SiteId,@OriginalFee,@DiscountFee,
                  @PaidAmount,@PaymentMethod,@ApprovalNumber,@TerminalId,@PaidAtUtc);
@@ -123,8 +123,8 @@ public sealed class PaymentRepository : IPaymentRepository
 
             await connection.ExecuteAsync(new CommandDefinition("""
                 UPDATE parking_session
-                SET status='Paid', paid_at_utc=@PaidAtUtc
-                WHERE parking_session_id=@ParkingSessionId;
+                SET status='Paid', paydate=@PaidAtUtc
+                WHERE xindex=@ParkingSessionId;
                 """,
                 new
                 {
@@ -150,11 +150,11 @@ public sealed class PaymentRepository : IPaymentRepository
         Guid paymentId,
         CancellationToken cancellationToken) =>
         connection.QuerySingleOrDefaultAsync<PaymentRow>(new CommandDefinition("""
-            SELECT payment_id PaymentId, parking_session_id ParkingSessionId, site_id SiteId,
-                   original_fee OriginalFee, discount_fee DiscountFee, paid_amount PaidAmount,
-                   payment_method PaymentMethod, approval_number ApprovalNumber,
-                   terminal_id TerminalId, paid_at_utc PaidAt
-            FROM payment WHERE payment_id=@PaymentId;
+            SELECT paymentid PaymentId, parkindex ParkingSessionId, sitenum SiteId,
+                   originalfee OriginalFee, discountfee DiscountFee, payamount PaidAmount,
+                   paymethod PaymentMethod, approvalnum ApprovalNumber,
+                   terminalid TerminalId, paydate PaidAt
+            FROM payment WHERE paymentid=@PaymentId;
             """,
             new { PaymentId = paymentId.ToByteArray() },
             transaction,
@@ -166,8 +166,8 @@ public sealed class PaymentRepository : IPaymentRepository
         long parkingSessionId,
         CancellationToken cancellationToken) =>
         connection.QuerySingleOrDefaultAsync<PaymentRow>(new CommandDefinition("""
-            SELECT payment_id PaymentId, parking_session_id ParkingSessionId
-            FROM payment WHERE parking_session_id=@ParkingSessionId;
+            SELECT paymentid PaymentId, parkindex ParkingSessionId
+            FROM payment WHERE parkindex=@ParkingSessionId;
             """,
             new { ParkingSessionId = parkingSessionId },
             transaction,

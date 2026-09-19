@@ -79,8 +79,8 @@ public sealed class ParkingExitRepositoryTests
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<long>("""
             INSERT INTO parking_session
-            (site_id,entry_event_id,car_number,entry_lane_id,entry_at_utc,status)
-            VALUES (1,@EntryEventId,@CarNumber,10,UTC_TIMESTAMP(6),@Status);
+            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,status)
+            VALUES (1,@EntryEventId,@CarNumber,1,1,10,UTC_TIMESTAMP(6),@Status);
             SELECT LAST_INSERT_ID();
             """, new
             {
@@ -94,7 +94,7 @@ public sealed class ParkingExitRepositoryTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<string>(
-            "SELECT status FROM parking_session WHERE parking_session_id=@ParkingSessionId;",
+            "SELECT status FROM parking_session WHERE xindex=@ParkingSessionId;",
             new { ParkingSessionId = parkingSessionId });
     }
 }
