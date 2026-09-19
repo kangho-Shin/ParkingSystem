@@ -5,6 +5,7 @@ using Parking.Contracts;
 
 namespace Parking.Api.Tests;
 
+[Collection("Database")]
 public sealed class PaymentRepositoryTests
 {
     private static string ConnectionString =>

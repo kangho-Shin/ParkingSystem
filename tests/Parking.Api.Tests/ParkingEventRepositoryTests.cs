@@ -5,6 +5,7 @@ using Parking.Contracts;
 
 namespace Parking.Api.Tests;
 
+[Collection("Database")]
 public class ParkingEventRepositoryTests
 {
     private static string ConnectionString =>
@@ -29,7 +30,8 @@ public class ParkingEventRepositoryTests
     private static async Task ClearTablesAsync()
     {
         await using MySqlConnection connection = new(ConnectionString);
-        await connection.ExecuteAsync("DELETE FROM parking_session; DELETE FROM parking_event;");
+        await connection.ExecuteAsync(
+            "DELETE FROM payment; DELETE FROM parking_session; DELETE FROM parking_event;");
     }
 
     private static async Task<long> GetSessionCountAsync()
