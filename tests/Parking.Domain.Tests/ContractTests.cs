@@ -63,6 +63,15 @@ public class ContractTests
         Assert.Contains("_12가3456_", result);
     }
 
+    [Theory]
+    [InlineData(@"C:\ParkingSystem\Images\IN.jpg", "IN.jpg")]
+    [InlineData("/var/parking/images/OUT.jpg", "OUT.jpg")]
+    [InlineData("ONLY.jpg", "ONLY.jpg")]
+    public void 이미지경로는_DB저장용_파일명으로_변환한다(string image, string expected)
+    {
+        Assert.Equal(expected, VehicleImageName.FileNameOnly(image));
+    }
+
     [Fact]
     public void 입출차요청은_그룹_방향_InImage_OutImage를_보관한다()
     {
