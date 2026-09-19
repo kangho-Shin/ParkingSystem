@@ -4,6 +4,7 @@ using Dapper;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using MySqlConnector;
+using Parking.Central.Data;
 using Parking.Contracts;
 
 namespace Parking.Api.Tests;
@@ -14,6 +15,19 @@ public sealed class PeriodMemberManagementEndpointTests
     private static string ConnectionString =>
         Environment.GetEnvironmentVariable("PARKING_TEST_CONNECTION")
         ?? throw new InvalidOperationException("PARKING_TEST_CONNECTION 환경변수가 없습니다.");
+
+    [Fact]
+    public async Task 저장소에서_등록차량을_추가하고_조회한다()
+    {
+        await ClearAsync();
+        PeriodMemberManagementRepository repository = new(ConnectionString);
+
+        long memberId = await repository.CreateAsync(CreateRequest(), CancellationToken.None);
+        PeriodMemberDetail? member = await repository.GetAsync(memberId, CancellationToken.None);
+
+        Assert.NotNull(member);
+        Assert.Equal("12가3456", member.CarNumber1);
+    }
 
     [Fact]
     public async Task 등록차량을_추가_조회_사용중지_삭제한다()
