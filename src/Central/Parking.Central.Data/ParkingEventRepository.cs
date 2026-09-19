@@ -32,7 +32,7 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                  carnum, eventat)
                 VALUES
                 (@EventId, @SiteId, @LaneId, @DeviceId, 'Entry',
-                 @CarNumber, @OccurredAtUtc);
+                 @CarNumber, @InDateTimeUtc);
                 """;
 
             int inserted = await connection.ExecuteAsync(
@@ -45,7 +45,7 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                         request.LaneId,
                         request.DeviceId,
                         request.CarNumber,
-                        OccurredAtUtc = request.OccurredAt.UtcDateTime
+                        InDateTimeUtc = request.InDateTime.UtcDateTime
                     },
                     transaction,
                     cancellationToken: cancellationToken));
@@ -76,7 +76,7 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                  COALESCE((SELECT groupnum FROM parking_lane
                            WHERE sitenum=@SiteId AND laneid=@LaneId), 1),
                  1, @LaneId,
-                 @DeviceId, @OccurredAtUtc, 'I');
+                 @DeviceId, @InDateTimeUtc, 'I');
 
                 SELECT LAST_INSERT_ID();
                 """;
@@ -91,7 +91,7 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                         request.CarNumber,
                         request.LaneId,
                         request.DeviceId,
-                        OccurredAtUtc = request.OccurredAt.UtcDateTime
+                        InDateTimeUtc = request.InDateTime.UtcDateTime
                     },
                     transaction,
                     cancellationToken: cancellationToken));
