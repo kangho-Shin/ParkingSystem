@@ -20,6 +20,10 @@ public sealed record EdgeServiceStatus(
     DateTimeOffset? ConfigurationSyncedAt,
     int PendingOutboxCount);
 
+public sealed record GatewayHealthResponse(
+    bool GatewayConnected,
+    bool CentralConnected);
+
 public sealed record EdgeEntryItem(
     Guid EventId,
     long? ParkingSessionId,
