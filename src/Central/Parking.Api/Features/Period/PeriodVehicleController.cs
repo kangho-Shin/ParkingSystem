@@ -94,7 +94,7 @@ public sealed class PeriodVehicleController : ControllerBase
 
         long memberId = await _memberRepository.CreateAsync(request, cancellationToken);
         PeriodMemberDetail? result = await _memberRepository.GetAsync(memberId, cancellationToken);
-        return CreatedAtAction(nameof(GetMemberAsync), new { memberId }, result);
+        return Created($"/api/v1/period/members/{memberId}", result);
     }
 
     [HttpPut("members/{memberId:long}")]
