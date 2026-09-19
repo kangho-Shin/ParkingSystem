@@ -20,6 +20,16 @@ namespace Parking.EdgeGateway
             CancellationToken cancellationToken) =>
             PostRawAsync("api/v1/fees/quote", json, cancellationToken);
 
+        public Task<HttpRelayResponse> RelaySessionFeeQuoteAsync(
+            string json,
+            CancellationToken cancellationToken) =>
+            PostRawAsync("api/v1/fees/quote/session", json, cancellationToken);
+
+        public Task<HttpRelayResponse> RelayParkingSearchAsync(
+            string queryString,
+            CancellationToken cancellationToken) =>
+            GetRawAsync($"api/v1/parking/search{queryString}", cancellationToken);
+
         public Task<HttpRelayResponse> RelayPaymentCompleteAsync(
             string json,
             CancellationToken cancellationToken) =>
@@ -55,6 +65,15 @@ namespace Parking.EdgeGateway
         {
             using StringContent content = new(json, Encoding.UTF8, "application/json");
             using HttpResponseMessage response = await _httpClient.PostAsync(uri, content, cancellationToken);
+            string responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+            return new HttpRelayResponse((int)response.StatusCode, responseJson);
+        }
+
+        private async Task<HttpRelayResponse> GetRawAsync(
+            string uri,
+            CancellationToken cancellationToken)
+        {
+            using HttpResponseMessage response = await _httpClient.GetAsync(uri, cancellationToken);
             string responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
             return new HttpRelayResponse((int)response.StatusCode, responseJson);
         }
