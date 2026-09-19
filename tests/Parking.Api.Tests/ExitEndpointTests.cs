@@ -44,6 +44,25 @@ public sealed class ExitEndpointTests
         Assert.Equal("PAYMENT_REQUIRED", result.ResultCode);
     }
 
+    [Fact]
+    public async Task 입차_EventType으로_출차요청하면_거부한다()
+    {
+        await using TestApplication factory = new();
+        HttpClient client = factory.CreateClient();
+        ExitEventRequest request = new(
+            Guid.NewGuid(), 1, 20, 201, "12가3456", DateTimeOffset.UtcNow,
+            1, 1, null, ParkingEventType.Entry);
+
+        HttpResponseMessage response = await client.PostAsync(
+            "/api/v1/parking/exits",
+            new StringContent(
+                JsonConvert.SerializeObject(request),
+                Encoding.UTF8,
+                "application/json"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private static async Task<(string CarNumber, DateTime Paydate)> CreatePaidSessionAsync()
     {
         string carNumber = $"TEST{Guid.NewGuid():N}"[..20];
