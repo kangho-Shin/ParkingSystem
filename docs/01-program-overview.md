@@ -31,7 +31,7 @@ Parking.Simulator / 향후 Kiosk·Operator·LprHost
 |---|---|---|---|
 | `Parking.Api` | 중앙 Linux/Windows 시험환경 | 입차·출차·요금·결제·현장설정 업무 처리, MySQL 저장 | 구현 완료 |
 | `Parking.EdgeGateway` | 중앙 | 현장 요청을 Parking.Api로 전달 | 구현 완료 |
-| `Parking.EdgeService` | 현장 Windows | 현장 API, SQLite Outbox, 장애 제한운영, 설정 동기화 | 구현 완료 |
+| `Parking.EdgeService` | 현장 Windows | 현장 API, SQLite Outbox, 설정 동기화, LPR TCP 수신·차로 처리 | 구현 완료 |
 | `Parking.Simulator` | 개발 PC | 가상 입·출차 및 중복·통신장애 시험 | 입·출차 기능 완료 |
 | `Parking.FeeEngine` | 공통 라이브러리 | 요금표·할인·유예시간 계산 | 1차 구현 완료 |
 | `Parking.Central.Data` | 중앙 공통 라이브러리 | MySQL 저장소 구현 | 구현 완료 |
@@ -44,7 +44,7 @@ Parking.Simulator / 향후 Kiosk·Operator·LprHost
 
 | 프로그램 | 예정 역할 | 상태 |
 |---|---|---|
-| `Parking.EdgeManager` | 현장 설정 조회, 연결상태, 입차·정산·출차 및 LPR 사진 모니터링 | 1차 구현 완료, 전체시험 대기 |
+| `Parking.EdgeManager` | 현장 설정 조회, 연결상태, 입차·정산·출차 및 LPR 사진 모니터링 | 1차 구현 및 전체시험 완료 |
 | `Parking.LprHost` | 카메라별 독립 프로세스, UDP 영상·TCP 제어·LPR 결과 전달 | 미구현 |
 | `Parking.Kiosk` | 사전·출구 무인정산, 15/24인치, BF UI | 기존 프로그램 개편 전 |
 | `Parking.Operator` | 유인정산, 차량정정, 수동 입출차, 원격 개방 | 미구현 |
