@@ -81,7 +81,7 @@ public sealed class ExitEndpointTests
 
     private static async Task<FieldEventResponse> RequestExitAsync(
         string carNumber,
-        DateTime occurredAt)
+        DateTime outDateTime)
     {
         await using TestApplication factory = new();
         HttpClient client = factory.CreateClient();
@@ -92,7 +92,7 @@ public sealed class ExitEndpointTests
             LaneId = 20,
             DeviceId = 201,
             CarNumber = carNumber,
-            OccurredAt = new DateTimeOffset(occurredAt, TimeSpan.Zero)
+            OutDateTime = new DateTimeOffset(outDateTime, TimeSpan.Zero)
         };
 
         HttpResponseMessage response = await client.PostAsync(
