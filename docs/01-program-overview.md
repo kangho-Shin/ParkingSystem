@@ -44,7 +44,7 @@ Parking.Simulator / 향후 Kiosk·Operator·LprHost
 
 | 프로그램 | 예정 역할 | 상태 |
 |---|---|---|
-| `Parking.EdgeManager` | 현장 설정, 서비스 점검, 로그 확인, 연결시험 | 미구현 |
+| `Parking.EdgeManager` | 현장 설정 조회, 연결상태, 입차·정산·출차 및 LPR 사진 모니터링 | 1차 구현 완료, 전체시험 대기 |
 | `Parking.LprHost` | 카메라별 독립 프로세스, UDP 영상·TCP 제어·LPR 결과 전달 | 미구현 |
 | `Parking.Kiosk` | 사전·출구 무인정산, 15/24인치, BF UI | 기존 프로그램 개편 전 |
 | `Parking.Operator` | 유인정산, 차량정정, 수동 입출차, 원격 개방 | 미구현 |
