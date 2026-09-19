@@ -25,4 +25,63 @@ public class ContractTests
         Assert.Equal("12가3456", request.CarNumber);
         Assert.Equal(occurredAt, request.OccurredAt);
     }
+
+    [Fact]
+    public void 차량이미지명은_현장_그룹_차로를_3자리로_만든다()
+    {
+        Guid eventId = Guid.Parse("4a912811-cb4d-4c3f-a70a-fe60504c3ef7");
+        DateTimeOffset capturedAt = new(
+            2026, 9, 19, 15, 30, 25, 123, TimeSpan.FromHours(9));
+
+        string result = VehicleImageName.Create(
+            1,
+            2,
+            10,
+            ParkingEventType.Entry,
+            capturedAt,
+            "12가3456",
+            eventId);
+
+        Assert.Equal(
+            "001_002_010_Entry_20260919153025123_12가3456_4a912811cb4d4c3fa70afe60504c3ef7.jpg",
+            result);
+    }
+
+    [Fact]
+    public void 차량이미지명은_번호를_자르지_않고_금지문자를_제거한다()
+    {
+        string result = VehicleImageName.Create(
+            1000,
+            2000,
+            3000,
+            ParkingEventType.Exit,
+            new DateTimeOffset(2026, 9, 19, 15, 30, 25, TimeSpan.Zero),
+            "12가/34:56",
+            Guid.Empty);
+
+        Assert.StartsWith("1000_2000_3000_Exit_", result);
+        Assert.Contains("_12가3456_", result);
+    }
+
+    [Fact]
+    public void 입출차요청은_그룹_방향_이미지를_보관한다()
+    {
+        VehicleImage image = new(
+            "001_002_010_Entry_test.jpg",
+            @"C:\ParkingSystem\Images\001_002_010_Entry_test.jpg",
+            DateTimeOffset.UtcNow);
+
+        FieldEventRequest entry = new(
+            Guid.NewGuid(), 1, 10, 101, "12가3456", DateTimeOffset.UtcNow,
+            2, ParkingEventType.Entry, image);
+        ExitEventRequest exit = new(
+            Guid.NewGuid(), 1, 20, 201, "12가3456", DateTimeOffset.UtcNow,
+            2, 1, null, ParkingEventType.Exit, image);
+
+        Assert.Equal(2, entry.Groupnum);
+        Assert.Equal(ParkingEventType.Entry, entry.EventType);
+        Assert.Same(image, entry.Image);
+        Assert.Equal(ParkingEventType.Exit, exit.EventType);
+        Assert.Same(image, exit.Image);
+    }
 }
