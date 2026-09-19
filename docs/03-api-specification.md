@@ -14,7 +14,7 @@
 
 ## 2. 공통 입출차 모델
 
-현재 모델에는 차량 이미지와 명시적인 입출 구분이 없다. 다음 구현에서 `EventType`, `Groupnum`, 이미지 경로·전송정보를 공통 계약에 추가한다. 확정 규칙은 [입출차 및 차량 이미지 설계](05-entry-exit-image-design.md)를 따른다.
+입차와 출차는 각각 `InDateTime`/`InImage`, `OutDateTime`/`OutImage`를 사용한다. 별도의 촬영시간 필드는 두지 않는다.
 
 ### FieldEventRequest
 
@@ -25,13 +25,16 @@
   "LaneId": 10,
   "DeviceId": 101,
   "CarNumber": "12가3456",
-  "OccurredAt": "2026-09-19T15:30:00+09:00"
+  "InDateTime": "2026-09-19T15:30:00+09:00",
+  "Groupnum": 1,
+  "EventType": "Entry",
+  "InImage": "C:\\ParkingSystem\\Images\\001_001_010_Entry_test.jpg"
 }
 ```
 
 ### ExitEventRequest
 
-`FieldEventRequest`와 같은 필드에 `Groupnum`, `CarType`, `DiscountKeys`가 추가된다. 현재 출차 계산은 DB에 저장된 세션의 `Groupnum`, `CarType`과 할인내역을 사용한다.
+`OutDateTime`, `Groupnum`, `CarType`, `DiscountKeys`, `EventType=Exit`, `OutImage`를 사용한다. 출차 계산은 DB에 저장된 세션의 `Groupnum`, `CarType`과 할인내역을 사용한다.
 
 ### FieldEventResponse
 
