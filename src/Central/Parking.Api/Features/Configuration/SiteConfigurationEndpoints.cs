@@ -42,7 +42,8 @@ namespace Parking.Api.Features.Configuration
             long deviceId, [FromBody] ParkingDevice device, CancellationToken cancellationToken)
         {
             if (deviceId != device.DeviceId || deviceId <= 0 ||
-                device.SiteId <= 0 || device.DeviceNumber <= 0)
+                device.SiteId <= 0 || device.DeviceNumber <= 0 ||
+                (device.Port is <= 0 or > 65535))
                 return BadRequest();
             await _repository.SaveDeviceAsync(device, cancellationToken);
             return NoContent();
