@@ -18,6 +18,13 @@ namespace Parking.Api.Features.Entries
             if (request.EventId == Guid.Empty)
                 return BadRequest(new { ResultCode = "INVALID_EVENT_ID", Message = "EventId가 필요합니다." });
 
+            if (request.EventType != ParkingEventType.Entry)
+                return BadRequest(new
+                {
+                    ResultCode = "INVALID_EVENT_TYPE",
+                    Message = "입차 요청의 EventType은 Entry여야 합니다."
+                });
+
             if (request.SiteId <= 0 || request.LaneId <= 0 || request.DeviceId <= 0)
                 return BadRequest(new
                 {
