@@ -81,8 +81,8 @@ namespace Parking.Api.Features.Fees
             {
                 Sitenum = request.Sitenum,
                 Groupnum = request.Groupnum,
-                EntryAt = session.EntryAt.UtcDateTime,
-                ExitAt = request.ExitAt.UtcDateTime,
+                EntryAt = session.EntryAt.ToOffset(request.ExitAt.Offset).DateTime,
+                ExitAt = request.ExitAt.DateTime,
                 CarType = request.CarType,
                 DiscountKeys = request.DiscountKeys
             };
