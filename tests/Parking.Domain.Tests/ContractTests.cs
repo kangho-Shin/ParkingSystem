@@ -8,7 +8,7 @@ public class ContractTests
     public void FieldEventRequest_필수식별정보를_보관한다()
     {
         Guid eventId = Guid.NewGuid();
-        DateTimeOffset occurredAt = new(2026, 9, 18, 0, 0, 0, TimeSpan.Zero);
+        DateTimeOffset inDateTime = new(2026, 9, 18, 0, 0, 0, TimeSpan.Zero);
 
         FieldEventRequest request = new(
             eventId,
@@ -16,21 +16,21 @@ public class ContractTests
             10,
             101,
             "12가3456",
-            occurredAt);
+            inDateTime);
 
         Assert.Equal(eventId, request.EventId);
         Assert.Equal(1, request.SiteId);
         Assert.Equal(10, request.LaneId);
         Assert.Equal(101, request.DeviceId);
         Assert.Equal("12가3456", request.CarNumber);
-        Assert.Equal(occurredAt, request.OccurredAt);
+        Assert.Equal(inDateTime, request.InDateTime);
     }
 
     [Fact]
     public void 차량이미지명은_현장_그룹_차로를_3자리로_만든다()
     {
         Guid eventId = Guid.Parse("4a912811-cb4d-4c3f-a70a-fe60504c3ef7");
-        DateTimeOffset capturedAt = new(
+        DateTimeOffset inDateTime = new(
             2026, 9, 19, 15, 30, 25, 123, TimeSpan.FromHours(9));
 
         string result = VehicleImageName.Create(
@@ -38,7 +38,7 @@ public class ContractTests
             2,
             10,
             ParkingEventType.Entry,
-            capturedAt,
+            inDateTime,
             "12가3456",
             eventId);
 
@@ -68,17 +68,21 @@ public class ContractTests
     {
         const string inImage = @"C:\ParkingSystem\Images\001_002_010_Entry_test.jpg";
         const string outImage = @"C:\ParkingSystem\Images\001_002_020_Exit_test.jpg";
+        DateTimeOffset inDateTime = DateTimeOffset.UtcNow;
+        DateTimeOffset outDateTime = inDateTime.AddHours(1);
 
         FieldEventRequest entry = new(
-            Guid.NewGuid(), 1, 10, 101, "12가3456", DateTimeOffset.UtcNow,
+            Guid.NewGuid(), 1, 10, 101, "12가3456", inDateTime,
             2, ParkingEventType.Entry, inImage);
         ExitEventRequest exit = new(
-            Guid.NewGuid(), 1, 20, 201, "12가3456", DateTimeOffset.UtcNow,
+            Guid.NewGuid(), 1, 20, 201, "12가3456", outDateTime,
             2, 1, null, ParkingEventType.Exit, outImage);
 
+        Assert.Equal(inDateTime, entry.InDateTime);
         Assert.Equal(2, entry.Groupnum);
         Assert.Equal(ParkingEventType.Entry, entry.EventType);
         Assert.Equal(inImage, entry.InImage);
+        Assert.Equal(outDateTime, exit.OutDateTime);
         Assert.Equal(ParkingEventType.Exit, exit.EventType);
         Assert.Equal(outImage, exit.OutImage);
     }
