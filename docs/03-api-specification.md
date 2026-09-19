@@ -67,6 +67,7 @@
 - 요청: `FieldEventRequest`
 - 성공: HTTP 200 + `FieldEventResponse`
 - 오류: 빈 EventId 또는 잘못된 SiteId/LaneId/DeviceId는 HTTP 400
+- `Sitenum`, `Groupnum`, `LaneId`, `DeviceId`, `EventType=Entry`가 활성 차로·장비 설정과 일치해야 한다.
 - 같은 EventId를 다시 보내면 최초 `ParkingSessionId`와 결과를 반환한다.
 
 ### GET `/api/v1/parking/open?siteId={siteId}&carNumber={carNumber}`
@@ -81,6 +82,7 @@
 - 요청: `ExitEventRequest`
 - 성공 여부와 관계없이 정상 처리 결과는 HTTP 200 + `FieldEventResponse`
 - 요청 형식 오류 또는 출차시각이 입차시각보다 빠르면 HTTP 400
+- `Sitenum`, `Groupnum`, `LaneId`, `DeviceId`, `EventType=Exit`가 활성 차로·장비 설정과 일치해야 한다.
 - 현재 요금, 할인, 기존 결제, 사전정산 유예시간을 다시 계산하여 `OpenBarrier`를 결정한다.
 
 ### POST `/api/v1/fees/calculate`
