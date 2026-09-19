@@ -22,6 +22,12 @@ namespace Parking.Api.Features.Fees
         public DateTimeOffset ExitAt { get; set; }
     }
 
+    public sealed class QuoteParkingSessionRequest
+    {
+        public long ParkingSessionId { get; set; }
+        public DateTimeOffset ExitAt { get; set; }
+    }
+
     public sealed record QuoteParkingFeeResponse(
         long ParkingSessionId,
         string CarNumber,
@@ -37,17 +43,14 @@ namespace Parking.Api.Features.Fees
     public sealed class FeeCalculationController : ControllerBase
     {
         private readonly FeeCalculationService _service;
-        private readonly IParkingExitRepository _parkingRepository;
-        private readonly ISettlementRepository _settlementRepository;
+        private readonly ParkingQuoteService _quoteService;
 
         public FeeCalculationController(
             FeeCalculationService service,
-            IParkingExitRepository parkingRepository,
-            ISettlementRepository settlementRepository)
+            ParkingQuoteService quoteService)
         {
             _service = service;
-            _parkingRepository = parkingRepository;
-            _settlementRepository = settlementRepository;
+            _quoteService = quoteService;
         }
 
         [HttpPost("calculate")]
@@ -71,49 +74,41 @@ namespace Parking.Api.Features.Fees
                 request.ExitAt == default)
                 return BadRequest();
 
-            OpenParkingSessionResponse? session = await _parkingRepository.FindOpenAsync(
-                request.Sitenum,
-                request.CarNumber.Trim(),
-                cancellationToken);
-
-            if (session is null)
-                return NotFound();
-
-            SettlementData settlement = await _settlementRepository.GetAsync(
-                session.ParkingSessionId,
-                cancellationToken);
-
-            var calculationRequest = new CalculateParkingFeeRequest
+            try
             {
-                Sitenum = request.Sitenum,
-                Groupnum = session.Groupnum,
-                EntryAt = session.EntryAt.ToOffset(request.ExitAt.Offset).DateTime,
-                ExitAt = request.ExitAt.DateTime,
-                CarType = session.CarType,
-                DiscountKeys = settlement.DiscountKeys.ToList()
-            };
+                QuoteParkingFeeResponse? result = await _quoteService.QuoteByCarNumberAsync(
+                    request.Sitenum,
+                    request.CarNumber.Trim(),
+                    request.ExitAt,
+                    cancellationToken);
+                return result is null ? NotFound() : Ok(result);
+            }
+            catch (ArgumentException)
+            {
+                return BadRequest();
+            }
+        }
 
-            if (!IsValid(calculationRequest))
+        [HttpPost("quote/session")]
+        public async Task<IActionResult> QuoteSessionAsync(
+            [FromBody] QuoteParkingSessionRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (request.ParkingSessionId <= 0 || request.ExitAt == default)
                 return BadRequest();
 
-            FeeCalculationResult calculation = await _service.CalculateSettlementAsync(
-                calculationRequest,
-                cancellationToken);
-            ParkingSettlementResult settlementResult = ParkingSettlementCalculator.Calculate(
-                calculation.Fee.FinalFee,
-                settlement.PaidAmount,
-                settlement.LastPaydate,
-                request.ExitAt,
-                calculation.PrepayGraceTime);
-            return Ok(new QuoteParkingFeeResponse(
-                session.ParkingSessionId,
-                session.CarNumber,
-                session.EntryAt,
-                request.ExitAt,
-                calculation.Fee,
-                settlement.PaidAmount,
-                settlementResult.PayableAmount,
-                settlementResult.IsPrepayGrace));
+            try
+            {
+                QuoteParkingFeeResponse? result = await _quoteService.QuoteBySessionIdAsync(
+                    request.ParkingSessionId,
+                    request.ExitAt,
+                    cancellationToken);
+                return result is null ? NotFound() : Ok(result);
+            }
+            catch (ArgumentException)
+            {
+                return BadRequest();
+            }
         }
 
         private static bool IsValid(CalculateParkingFeeRequest request) =>
