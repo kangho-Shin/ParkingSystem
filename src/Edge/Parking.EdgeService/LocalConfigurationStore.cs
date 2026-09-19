@@ -49,5 +49,18 @@ namespace Parking.EdgeService
                     cancellationToken: cancellationToken));
             return json is null ? null : JsonConvert.DeserializeObject<SiteConfiguration>(json);
         }
+
+        public async Task<DateTimeOffset?> GetSyncedAtAsync(CancellationToken cancellationToken)
+        {
+            await using SqliteConnection connection = new(_connectionString);
+            string? syncedAt = await connection.QuerySingleOrDefaultAsync<string>(
+                new CommandDefinition(
+                    "SELECT synced_at_utc FROM site_configuration ORDER BY synced_at_utc DESC LIMIT 1;",
+                    cancellationToken: cancellationToken));
+
+            return syncedAt is null
+                ? null
+                : DateTimeOffset.Parse(syncedAt, System.Globalization.CultureInfo.InvariantCulture);
+        }
     }
 }
