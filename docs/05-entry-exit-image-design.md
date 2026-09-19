@@ -24,26 +24,33 @@
 - `parking_event`에 Entry 사건 저장
 - `parking_session` 신규 행 생성
 - 차량번호, 입차시각, 입차 차로·장비, 입차 이미지 저장
-- 상태를 `Entered`로 설정
+- `outflag`를 `I`로 설정
 
 ### 정산
 
 - 같은 `parking_session`에 결제 내역 연결
-- 상태를 `Paid`로 변경
+- 전체 차량번호와 뒤 4자리 조회 모두 같은 요금계산 흐름을 사용
+- 차량조회나 요금계산만으로는 `outflag=I`를 유지
+- 실제 결제완료 또는 최종요금 0원 확정 시 `outflag=X`로 변경
 
 ### 출차
 
 - 최신 미출차 `parking_session` 조회
 - 출차시각, 출차 차로·장비, 출차 이미지 저장
-- 상태를 `Exited`로 변경
+- `outflag`를 `O`로 변경
 - 입차정보는 삭제하지 않는다.
 
-정상 상태 흐름은 다음과 같다.
+`parking_session`에는 기존 시스템과 같은 `outflag CHAR(1)`를 사용한다.
 
 ```text
-Entered → Paid → Exited
-Entered → Exited  // 무료차량 또는 최종요금 0원
+I = 입차
+X = 실제 정산완료
+O = 출차완료
+
+I → X → O
 ```
+
+현재의 문자열 `status`와 `outflag`를 함께 사용하지 않고 `outflag`로 통일한다. 결제 상세는 `payment`와 `paydate`에서 확인한다.
 
 ## 3. 등록차량
 
@@ -56,14 +63,18 @@ Entered → Exited  // 무료차량 또는 최종요금 0원
 
 ## 4. 차량번호 뒤 4자리 조회
 
-출구무인과 사전무인은 차량번호 뒤 4자리로 미출차 차량을 조회한다.
+출구무인과 사전무인은 전체 차량번호 또는 차량번호 뒤 4자리로 미출차 차량을 조회한다.
 
 - `Sitenum`, `Groupnum` 범위 적용
 - 일반차량과 등록차량 미출차 내역을 함께 조회
 - 최신 입차시간순 정렬
 - 차량번호 전체값, 입차시간, 입차이미지, 차량구분 반환
-- 결과가 여러 건이면 사용자가 차량을 선택
-- 선택된 주차 건으로 요금 계산
+- 전체 차량번호 조회 결과가 한 건이면 즉시 요금 계산
+- 뒤 4자리 조회 결과가 한 건이면 즉시 요금 계산
+- 결과가 여러 건이면 정산기에 차량목록을 보내 사용자가 선택
+- 선택된 `ParkingSessionId`로 다시 호출하여 요금 계산
+- 조회·계산만으로는 `outflag=I`를 유지
+- 결제완료 또는 최종요금 0원 확정 시 `outflag=X`로 변경
 
 뒤 4자리 검색 결과를 임의로 한 건만 선택하지 않는다.
 
@@ -82,8 +93,8 @@ Entered → Exited  // 무료차량 또는 최종요금 0원
 ## 6. 이미지 파일명
 
 ```text
-Sitenum_Groupnum_LaneId_Entry_yyyyMMddHHmmssfff_차량번호_EventId.jpg
-Sitenum_Groupnum_LaneId_Exit_yyyyMMddHHmmssfff_차량번호_EventId.jpg
+SSS_GGG_LLL_Entry_yyyyMMddHHmmssfff_차량번호_EventId.jpg
+SSS_GGG_LLL_Exit_yyyyMMddHHmmssfff_차량번호_EventId.jpg
 ```
 
 예:
@@ -93,6 +104,8 @@ Sitenum_Groupnum_LaneId_Exit_yyyyMMddHHmmssfff_차량번호_EventId.jpg
 ```
 
 - 차량번호에서 파일명에 사용할 수 없는 문자를 제거한다.
+- `Sitenum`, `Groupnum`, `LaneId`는 각각 3자리 고정으로 기록한다.
+- 예: 1→`001`, 2→`002`, 10→`010`.
 - 밀리초와 EventId를 포함하여 파일명 충돌을 막는다.
 - DB에는 이미지 바이너리가 아니라 경로와 전송상태를 저장한다.
 - 필요하면 파일 해시를 함께 저장하여 손상과 중복을 확인한다.
@@ -117,6 +130,6 @@ Sitenum_Groupnum_LaneId_Exit_yyyyMMddHHmmssfff_차량번호_EventId.jpg
 1. 공통 계약에 `EventType`, `Groupnum`, 이미지 정보를 추가
 2. MySQL 주차 세션과 등록차량 입출차 스키마에 이미지·차로·장비 필드 추가
 3. SQLite 이미지 전송대기 구조 추가
-4. 차량번호 뒤 4자리 통합조회 API 구현
+4. 전체 차량번호·뒤 4자리 통합조회 API 구현
 5. 입차 API와 출차 API에 방향 검증 적용
 6. Simulator에 이미지·출차·4자리 조회 시험 추가

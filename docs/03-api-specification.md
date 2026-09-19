@@ -206,12 +206,30 @@
 
 ## 6. 구현 예정 API
 
-### GET `/api/v1/parking/search?siteId={siteId}&groupnum={groupnum}&last4={last4}`
+### GET `/api/v1/parking/search?siteId={siteId}&groupnum={groupnum}&carNumber={number}`
 
-- 출구무인·사전무인 차량번호 뒤 4자리 조회용
+- `carNumber`에 전체 차량번호 또는 뒤 4자리를 입력
 - 일반차량과 등록차량의 미출차 내역을 통합 반환
 - 최신 입차시간순 정렬
 - 차량번호, 입차시간, 입차이미지, 차량구분, 주차 식별자 반환
 - 여러 건을 그대로 반환하며 서버에서 임의 선택하지 않음
+- 결과가 한 건이면 해당 주차 건의 요금을 즉시 계산
+- 결과가 여러 건이면 정산기 선택 후 `ParkingSessionId`로 다시 계산 요청
+- 전체 차량번호 조회도 같은 처리 흐름 사용
+- 조회·계산만으로는 `outflag=I` 유지
+- 결제완료 또는 최종요금 0원 확정 시 `outflag=X`
+
+### POST `/api/v1/fees/quote/session`
+
+여러 차량 중 정산기에서 선택한 주차 건을 다시 계산한다.
+
+```json
+{
+  "ParkingSessionId": 53,
+  "ExitAt": "2026-09-19T09:00:00+09:00"
+}
+```
+
+선택은 차량번호가 아니라 `ParkingSessionId`를 사용한다.
 
 이 API는 규격 확정 상태이며 아직 구현되지 않았다.
