@@ -24,15 +24,24 @@ public sealed class EntrySimulator
         long laneId,
         long deviceId,
         string carNumber,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int groupnum = 1,
+        string? inImage = null)
     {
+        DateTimeOffset inDateTime = DateTimeOffset.Now;
+        inImage ??= VehicleImageName.Create(
+            siteId, groupnum, laneId, ParkingEventType.Entry,
+            inDateTime, carNumber, eventId);
         FieldEventRequest request = new(
             eventId,
             siteId,
             laneId,
             deviceId,
             carNumber,
-            DateTimeOffset.UtcNow);
+            inDateTime,
+            groupnum,
+            ParkingEventType.Entry,
+            inImage);
 
         using HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
             "/api/v1/edge/events",
