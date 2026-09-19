@@ -10,8 +10,11 @@ internal sealed class OpenParkingSessionRow
     public long ParkingSessionId { get; set; }
     public long SiteId { get; set; }
     public string CarNumber { get; set; } = "";
+    public int Groupnum { get; set; }
+    public int CarType { get; set; }
     public long EntryLaneId { get; set; }
     public DateTime EntryAt { get; set; }
+    public DateTime? Paydate { get; set; }
     public string Status { get; set; } = "";
 }
 
@@ -30,7 +33,8 @@ public sealed class ParkingExitRepository : IParkingExitRepository
     {
         const string sql = """
             SELECT xindex ParkingSessionId, sitenum SiteId, carnum CarNumber,
-                   inlaneid EntryLaneId, indate EntryAt, status Status
+                   groupnum Groupnum, cartype CarType, inlaneid EntryLaneId,
+                   indate EntryAt, paydate Paydate, status Status
             FROM parking_session
             WHERE sitenum=@SiteId AND carnum=@CarNumber AND status<>'Exited'
             ORDER BY indate DESC LIMIT 1;
@@ -46,12 +50,18 @@ public sealed class ParkingExitRepository : IParkingExitRepository
             return null;
 
         DateTime entryAtUtc = DateTime.SpecifyKind(row.EntryAt, DateTimeKind.Utc);
+        DateTimeOffset? paydate = row.Paydate.HasValue
+            ? new DateTimeOffset(DateTime.SpecifyKind(row.Paydate.Value, DateTimeKind.Utc))
+            : null;
         return new OpenParkingSessionResponse(
             row.ParkingSessionId,
             row.SiteId,
             row.CarNumber,
+            row.Groupnum,
+            row.CarType,
             row.EntryLaneId,
             new DateTimeOffset(entryAtUtc),
+            paydate,
             row.Status);
     }
 

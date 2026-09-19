@@ -13,6 +13,24 @@ public sealed class ParkingExitRepositoryTests
         ?? throw new InvalidOperationException("PARKING_TEST_CONNECTION 환경변수가 없습니다.");
 
     [Fact]
+    public async Task 미출차_조회는_입차시_저장한_그룹과_차종을_반환한다()
+    {
+        string carNumber = $"TEST{Guid.NewGuid():N}"[..20];
+        long parkingSessionId = await CreateSessionAsync(carNumber, "Entered", 2, 3);
+        ParkingExitRepository repository = new(ConnectionString);
+
+        OpenParkingSessionResponse? result = await repository.FindOpenAsync(
+            1,
+            carNumber,
+            CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(parkingSessionId, result.ParkingSessionId);
+        Assert.Equal(2, result.Groupnum);
+        Assert.Equal(3, result.CarType);
+    }
+
+    [Fact]
     public async Task 미결제_차량은_출차를_거부한다()
     {
         string carNumber = $"TEST{Guid.NewGuid():N}"[..20];
@@ -74,18 +92,24 @@ public sealed class ParkingExitRepositoryTests
         carNumber,
         DateTimeOffset.UtcNow);
 
-    private static async Task<long> CreateSessionAsync(string carNumber, string status)
+    private static async Task<long> CreateSessionAsync(
+        string carNumber,
+        string status,
+        int groupnum = 1,
+        int carType = 1)
     {
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<long>("""
             INSERT INTO parking_session
             (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,status)
-            VALUES (1,@EntryEventId,@CarNumber,1,1,10,UTC_TIMESTAMP(6),@Status);
+            VALUES (1,@EntryEventId,@CarNumber,@Groupnum,@CarType,10,UTC_TIMESTAMP(6),@Status);
             SELECT LAST_INSERT_ID();
             """, new
             {
                 EntryEventId = Guid.NewGuid().ToByteArray(),
                 CarNumber = carNumber,
+                Groupnum = groupnum,
+                CarType = carType,
                 Status = status
             });
     }

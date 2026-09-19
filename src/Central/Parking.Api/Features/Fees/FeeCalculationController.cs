@@ -18,10 +18,8 @@ namespace Parking.Api.Features.Fees
     public sealed class QuoteParkingFeeRequest
     {
         public int Sitenum { get; set; }
-        public int Groupnum { get; set; }
         public string CarNumber { get; set; } = "";
         public DateTimeOffset ExitAt { get; set; }
-        public int CarType { get; set; }
         public List<int> DiscountKeys { get; set; } = new();
     }
 
@@ -64,9 +62,8 @@ namespace Parking.Api.Features.Fees
             [FromBody] QuoteParkingFeeRequest request,
             CancellationToken cancellationToken)
         {
-            if (request.Sitenum <= 0 || request.Groupnum <= 0 ||
-                string.IsNullOrWhiteSpace(request.CarNumber) ||
-                request.ExitAt == default || request.CarType <= 0)
+            if (request.Sitenum <= 0 || string.IsNullOrWhiteSpace(request.CarNumber) ||
+                request.ExitAt == default)
                 return BadRequest();
 
             OpenParkingSessionResponse? session = await _parkingRepository.FindOpenAsync(
@@ -80,10 +77,10 @@ namespace Parking.Api.Features.Fees
             var calculationRequest = new CalculateParkingFeeRequest
             {
                 Sitenum = request.Sitenum,
-                Groupnum = request.Groupnum,
+                Groupnum = session.Groupnum,
                 EntryAt = session.EntryAt.ToOffset(request.ExitAt.Offset).DateTime,
                 ExitAt = request.ExitAt.DateTime,
-                CarType = request.CarType,
+                CarType = session.CarType,
                 DiscountKeys = request.DiscountKeys
             };
 
