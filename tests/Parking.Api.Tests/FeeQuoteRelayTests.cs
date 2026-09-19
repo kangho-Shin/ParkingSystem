@@ -44,6 +44,47 @@ public sealed class FeeQuoteRelayTests
     }
 
     [Fact]
+    public async Task Gateway와_EdgeService는_차량검색을_원문중계한다()
+    {
+        const string query = "?siteId=1&groupnum=1&carNumber=3456&exitAt=2026-09-19T10%3A00%3A00Z";
+        CaptureHandler apiHandler = new(HttpStatusCode.OK, "{\"Candidates\":[]}");
+        CaptureHandler gatewayHandler = new(HttpStatusCode.OK, "{\"Candidates\":[]}");
+
+        HttpRelayResponse apiResult = await new Parking.EdgeGateway.ParkingApiClient(
+            new HttpClient(apiHandler) { BaseAddress = new Uri("http://localhost/") })
+            .RelayParkingSearchAsync(query, CancellationToken.None);
+        HttpRelayResponse gatewayResult = await new Parking.EdgeService.GatewayClient(
+            new HttpClient(gatewayHandler) { BaseAddress = new Uri("http://localhost/") })
+            .RelayParkingSearchAsync(query, CancellationToken.None);
+
+        Assert.Equal("/api/v1/parking/search", apiHandler.RequestPath);
+        Assert.Equal(query, apiHandler.RequestQuery);
+        Assert.Equal("/api/v1/edge/parking/search", gatewayHandler.RequestPath);
+        Assert.Equal(query, gatewayHandler.RequestQuery);
+        Assert.Equal(apiResult.Content, gatewayResult.Content);
+    }
+
+    [Fact]
+    public async Task Gateway와_EdgeService는_선택세션견적을_원문중계한다()
+    {
+        const string json = "{\"ParkingSessionId\":53,\"ExitAt\":\"2026-09-19T10:00:00Z\"}";
+        CaptureHandler apiHandler = new(HttpStatusCode.OK, "{\"PayableAmount\":600}");
+        CaptureHandler gatewayHandler = new(HttpStatusCode.OK, "{\"PayableAmount\":600}");
+
+        await new Parking.EdgeGateway.ParkingApiClient(
+            new HttpClient(apiHandler) { BaseAddress = new Uri("http://localhost/") })
+            .RelaySessionFeeQuoteAsync(json, CancellationToken.None);
+        await new Parking.EdgeService.GatewayClient(
+            new HttpClient(gatewayHandler) { BaseAddress = new Uri("http://localhost/") })
+            .RelaySessionFeeQuoteAsync(json, CancellationToken.None);
+
+        Assert.Equal("/api/v1/fees/quote/session", apiHandler.RequestPath);
+        Assert.Equal(json, apiHandler.RequestContent);
+        Assert.Equal("/api/v1/edge/fees/quote/session", gatewayHandler.RequestPath);
+        Assert.Equal(json, gatewayHandler.RequestContent);
+    }
+
+    [Fact]
     public async Task Gateway는_결제완료_JSON을_ParkingApi로_전달한다()
     {
         const string requestJson = "{\"PaymentId\":\"11111111-1111-1111-1111-111111111111\",\"PaidAmount\":600}";
@@ -148,6 +189,7 @@ public sealed class FeeQuoteRelayTests
         private readonly string _responseContent;
 
         public string RequestPath { get; private set; } = "";
+        public string RequestQuery { get; private set; } = "";
         public string RequestContent { get; private set; } = "";
 
         public CaptureHandler(HttpStatusCode statusCode, string responseContent)
@@ -161,6 +203,7 @@ public sealed class FeeQuoteRelayTests
             CancellationToken cancellationToken)
         {
             RequestPath = request.RequestUri?.AbsolutePath ?? "";
+            RequestQuery = request.RequestUri?.Query ?? "";
             RequestContent = request.Content is null
                 ? ""
                 : await request.Content.ReadAsStringAsync(cancellationToken);
