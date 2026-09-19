@@ -40,6 +40,13 @@ namespace Parking.Api.Features.Exits
             [FromBody] ExitEventRequest request,
             CancellationToken cancellationToken)
         {
+            if (request.EventType != ParkingEventType.Exit)
+                return BadRequest(new
+                {
+                    ResultCode = "INVALID_EVENT_TYPE",
+                    Message = "출차 요청의 EventType은 Exit여야 합니다."
+                });
+
             if (request.EventId == Guid.Empty || request.SiteId <= 0 ||
                 request.SiteId > int.MaxValue ||
                 request.LaneId <= 0 || request.DeviceId <= 0 ||
