@@ -70,8 +70,8 @@ public class ParkingEventRepositoryTests
 
         Assert.Equal(2, stored.Groupnum);
         Assert.Equal(101, stored.InDeviceId);
-        Assert.Equal(inImage, stored.InImage);
-        Assert.Equal(inImage, stored.EventImage);
+        Assert.Equal("001_002_010_Entry_test.jpg", stored.InImage);
+        Assert.Equal("001_002_010_Entry_test.jpg", stored.EventImage);
     }
 
     [Fact]
