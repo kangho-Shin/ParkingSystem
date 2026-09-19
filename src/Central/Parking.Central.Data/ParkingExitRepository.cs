@@ -5,6 +5,16 @@ using Parking.Contracts;
 
 namespace Parking.Central.Data;
 
+internal sealed class OpenParkingSessionRow
+{
+    public long ParkingSessionId { get; set; }
+    public long SiteId { get; set; }
+    public string CarNumber { get; set; } = "";
+    public long EntryLaneId { get; set; }
+    public DateTime EntryAt { get; set; }
+    public string Status { get; set; } = "";
+}
+
 public sealed class ParkingExitRepository : IParkingExitRepository
 {
     private readonly string _connectionString;
@@ -20,8 +30,23 @@ public sealed class ParkingExitRepository : IParkingExitRepository
             ORDER BY entry_at_utc DESC LIMIT 1;
             """;
         await using MySqlConnection connection = new(_connectionString);
-        return await connection.QuerySingleOrDefaultAsync<OpenParkingSessionResponse>(
-            new CommandDefinition(sql, new { SiteId = siteId, CarNumber = carNumber }, cancellationToken: cancellationToken));
+        OpenParkingSessionRow? row = await connection.QuerySingleOrDefaultAsync<OpenParkingSessionRow>(
+            new CommandDefinition(
+                sql,
+                new { SiteId = siteId, CarNumber = carNumber },
+                cancellationToken: cancellationToken));
+
+        if (row is null)
+            return null;
+
+        DateTime entryAtUtc = DateTime.SpecifyKind(row.EntryAt, DateTimeKind.Utc);
+        return new OpenParkingSessionResponse(
+            row.ParkingSessionId,
+            row.SiteId,
+            row.CarNumber,
+            row.EntryLaneId,
+            new DateTimeOffset(entryAtUtc),
+            row.Status);
     }
 
     public async Task<FieldEventResponse> SaveExitAsync(ExitEventRequest request, CancellationToken cancellationToken)
