@@ -291,3 +291,9 @@
 선택은 차량번호가 아니라 `ParkingSessionId`를 사용한다.
 
 이 API는 규격 확정 상태이며 아직 구현되지 않았다.
+### 전광판 장비 등록
+
+- 장비 등록 API에서 `DeviceType`을 `LDM`으로 지정한다.
+- 같은 차로의 `LaneId`, 전광판 `IpAddress`, TCP `Port`를 함께 저장한다.
+- EdgeService는 설정을 동기화한 뒤 LPR 처리 결과를 해당 차로 전광판으로 전송한다.
+- `OpenBarrier=true`일 때만 전광판에 차단기 열림 명령을 전송한다.
