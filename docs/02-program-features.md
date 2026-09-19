@@ -67,6 +67,21 @@ DB와 화면에 의존하지 않는 공통 요금 계산 라이브러리다.
 
 현재 `CarType` 규칙은 1=소형, 2=중형, 3=대형이며, 같은 사이트라도 `Groupnum`별로 다른 요금표를 적용할 수 있다.
 
+## Parking.EdgeManager
+
+현장 Windows PC에서 실행하는 WinForms 모니터링 프로그램이다.
+
+- EdgeService·EdgeGateway·중앙 API 연결상태 표시
+- Outbox 전송 대기 건수와 마지막 설정 동기화 시각 표시
+- 현재 입차 차량을 최대 1,000대까지 최신순 표시
+- 정산과 출차를 같은 처리 목록에 최근 1,000건 표시
+- 허용 출차 시 현재 입차 목록에서 자동 삭제
+- 새 사건 발생 시 해당 차량 LPR 사진으로 자동 전환
+- 목록 선택 시 선택 차량의 입차·출차 사진 표시
+- 1초 간격 자동 갱신, 연결 실패 시 마지막 정상자료 유지
+
+기본 EdgeService 주소는 `http://localhost:5200/`이며 `Parking.EdgeManager/appsettings.json`에서 변경한다. LPR 이미지 폴더는 EdgeService의 `Edge:ImageDirectory`에 설정하며 EdgeManager는 이미지 폴더와 SQLite를 직접 열지 않는다.
+
 ## Parking.Central.Data
 
 Dapper와 MySqlConnector를 사용하는 저장소 계층이다.
