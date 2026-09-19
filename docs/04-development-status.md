@@ -44,6 +44,12 @@
 - SQLite `INTEGER`를 Dapper `Int64`로 읽도록 수정
 - Parking.Simulator 입차 명령과 `--event`, `--repeat-event` 구현
 - Simulator를 솔루션에 등록하고 전체 빌드·테스트 성공
+- 일반차량 `outflag`를 I/X/O로 통일하고 입·출차 이미지와 장비정보 저장
+- 전체번호·뒤 4자리 미출차 차량검색과 복수 후보 선택 흐름 구현
+- 단일 후보 즉시 견적과 `ParkingSessionId` 선택 견적 구현
+- 최종 결제금액 0원 또는 결제완료 시 `outflag=X` 처리
+- 검색·선택견적의 EdgeService→Gateway→API 중계 구현
+- Simulator 입차·출차 `EventType`, 이미지명 생성 구현
 
 ## 3. 실제 통합시험 완료 내용
 
@@ -74,30 +80,26 @@
 - 요금·결제 중계 및 결제 Outbox 재전송
 - Simulator 입차·중복·장애복구 시험
 - 자동시험과 실제 로컬 통합시험
+- 일반차량 입·출차 이미지 및 `InDateTime`/`OutDateTime` 계약
+- 일반차량 전체번호·뒤 4자리 검색과 선택 정산 API
 
 ## 5. 아직 구현하지 않은 범위
 
-### 확정됐지만 미반영된 입출차 데이터 개선
+### 등록차량 스키마 확인 후 구현
 
-- 입차·출차 사건의 명시적 `EventType`
-- 입차·출차 차량 이미지 경로와 전송상태
-- 일반차량 `parking_session` 한 행에 입·출차 정보 보존
 - 등록차량 `tperiodinout` 입차 생성·출차 업데이트
-- 출구무인·사전무인 차량번호 뒤 4자리 통합조회
+- 등록차량과 일반차량의 차량검색 결과 통합
+- 이미지 파일 자체의 중앙 전송상태와 재전송
 - 짧은 시간 내 동일 차량 중복입차 방지
-- `parking_session.status`를 기존 규칙의 `outflag CHAR(1)`로 통일
-- `outflag`: I=입차, X=실제 정산완료, O=출차완료
-- 전체 차량번호·뒤 4자리 조회의 동일한 요금계산 흐름
 
 상세 내용은 [입출차 및 차량 이미지 설계](05-entry-exit-image-design.md)를 따른다.
 
 ### 다음 우선순위
 
-1. 입출차 공통 계약에 방향·그룹·이미지 정보 추가
-2. 일반차량·등록차량 DB 구조에 입출차 이미지와 장비정보 반영
-3. 전체 차량번호·뒤 4자리 통합조회 API 구현
-4. Simulator의 출차·이미지·4자리 조회 시험
-5. `Parking.EdgeManager` 최소 기능
+1. 등록차량 운영 스키마 확인 후 `tperiodinout` 연동
+2. 이미지 파일 전송 Outbox 구현
+3. 짧은 시간 동일차량 중복입차 방지
+4. `Parking.EdgeManager` 최소 기능
 6. 실제 LPR 결과 입력 계약과 차로 처리기
 7. 가상 전광판·차단기 출력
 8. 기존 LPR 프로그램을 `Parking.LprHost` 구조로 개편
@@ -166,7 +168,9 @@ dotnet run --no-launch-profile --project src\Edge\Parking.EdgeService\Parking.Ed
 ### CMD 4: Simulator
 
 ```bat
-dotnet run --project src\Tools\Parking.Simulator\Parking.Simulator.csproj -- entry --site 1 --lane 10 --device 101 --car 12가3456 --repeat-event
+dotnet run --project src\Tools\Parking.Simulator\Parking.Simulator.csproj -- entry --site 1 --group 1 --lane 10 --device 101 --car 12가3456 --repeat-event
+
+dotnet run --project src\Tools\Parking.Simulator\Parking.Simulator.csproj -- exit --site 1 --group 1 --lane 20 --device 201 --car 12가3456
 ```
 
 ## 8. 시험 명령
