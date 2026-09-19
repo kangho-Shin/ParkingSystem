@@ -6,7 +6,7 @@ using Parking.Contracts;
 namespace Parking.EdgeService
 {
     public sealed record OutboxMessage(Guid EventId, string EventType, string PayloadJson, int RetryCount);
-    internal sealed record OutboxRow(string EventId, string EventType, string PayloadJson, int RetryCount);
+    internal sealed record OutboxRow(string EventId, string EventType, string PayloadJson, long RetryCount);
 
     public sealed class SqliteOutboxRepository
     {
@@ -103,7 +103,7 @@ namespace Parking.EdgeService
                 }, cancellationToken: cancellationToken));
 
             return rows.Select(x =>
-                new OutboxMessage(Guid.Parse(x.EventId), x.EventType, x.PayloadJson, x.RetryCount)).ToList();
+                new OutboxMessage(Guid.Parse(x.EventId), x.EventType, x.PayloadJson, checked((int)x.RetryCount))).ToList();
         }
 
         public Task MarkCompletedAsync(Guid eventId, CancellationToken cancellationToken) =>
