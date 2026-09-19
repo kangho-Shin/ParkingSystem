@@ -29,7 +29,8 @@ namespace Parking.Api.Features.Fees
         DateTimeOffset ExitAt,
         ParkingFeeResult Fee,
         long PreviousPaidAmount,
-        long PayableAmount);
+        long PayableAmount,
+        bool IsPrepayGrace);
 
     [ApiController]
     [Route("api/v1/fees")]
@@ -95,16 +96,24 @@ namespace Parking.Api.Features.Fees
             if (!IsValid(calculationRequest))
                 return BadRequest();
 
-            ParkingFeeResult fee = await _service.CalculateAsync(calculationRequest, cancellationToken);
-            long payableAmount = Math.Max((long)fee.FinalFee - settlement.PaidAmount, 0);
+            FeeCalculationResult calculation = await _service.CalculateSettlementAsync(
+                calculationRequest,
+                cancellationToken);
+            ParkingSettlementResult settlementResult = ParkingSettlementCalculator.Calculate(
+                calculation.Fee.FinalFee,
+                settlement.PaidAmount,
+                settlement.LastPaydate,
+                request.ExitAt,
+                calculation.PrepayGraceTime);
             return Ok(new QuoteParkingFeeResponse(
                 session.ParkingSessionId,
                 session.CarNumber,
                 session.EntryAt,
                 request.ExitAt,
-                fee,
+                calculation.Fee,
                 settlement.PaidAmount,
-                payableAmount));
+                settlementResult.PayableAmount,
+                settlementResult.IsPrepayGrace));
         }
 
         private static bool IsValid(CalculateParkingFeeRequest request) =>

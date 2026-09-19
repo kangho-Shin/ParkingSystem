@@ -5,6 +5,38 @@ namespace Parking.Api.Tests;
 public sealed class ParkFeeCalculatorTests
 {
     [Fact]
+    public void 사전정산_유예시간_안에는_추가요금이_없다()
+    {
+        DateTimeOffset paydate = new(2026, 9, 19, 10, 0, 0, TimeSpan.FromHours(9));
+
+        ParkingSettlementResult result = ParkingSettlementCalculator.Calculate(
+            1500,
+            1000,
+            paydate,
+            paydate.AddMinutes(10),
+            10);
+
+        Assert.True(result.IsPrepayGrace);
+        Assert.Equal(0, result.PayableAmount);
+    }
+
+    [Fact]
+    public void 사전정산_유예시간이_지나면_기결제금액을_차감한다()
+    {
+        DateTimeOffset paydate = new(2026, 9, 19, 10, 0, 0, TimeSpan.FromHours(9));
+
+        ParkingSettlementResult result = ParkingSettlementCalculator.Calculate(
+            1500,
+            1000,
+            paydate,
+            paydate.AddMinutes(11),
+            10);
+
+        Assert.False(result.IsPrepayGrace);
+        Assert.Equal(500, result.PayableAmount);
+    }
+
+    [Fact]
     public void 회차시간_이내이면_요금은_0원이다()
     {
         ParkingFeeCalculator calculator = CreateCalculator(graceTime: 30, serviceTime: 0);
