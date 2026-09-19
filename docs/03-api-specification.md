@@ -69,6 +69,7 @@
 - 오류: 빈 EventId 또는 잘못된 SiteId/LaneId/DeviceId는 HTTP 400
 - `Sitenum`, `Groupnum`, `LaneId`, `DeviceId`, `EventType=Entry`가 활성 차로·장비 설정과 일치해야 한다.
 - 같은 EventId를 다시 보내면 최초 `ParkingSessionId`와 결과를 반환한다.
+- 유효한 등록차량이면 일반차량 테이블 대신 `tperiodinout`에 저장하고 `PERIOD_ENTRY_ACCEPTED`를 반환한다.
 
 ### GET `/api/v1/parking/open?siteId={siteId}&carNumber={carNumber}`
 
@@ -84,6 +85,16 @@
 - 요청 형식 오류 또는 출차시각이 입차시각보다 빠르면 HTTP 400
 - `Sitenum`, `Groupnum`, `LaneId`, `DeviceId`, `EventType=Exit`가 활성 차로·장비 설정과 일치해야 한다.
 - 현재 요금, 할인, 기존 결제, 사전정산 유예시간을 다시 계산하여 `OpenBarrier`를 결정한다.
+- 등록차량 미출차 건이 있으면 요금계산 없이 같은 `tperiodinout` 행을 출차 완료하고 `PERIOD_EXIT_ACCEPTED`를 반환한다.
+
+### 등록차량 API
+
+| Method | URL | 기능 |
+|---|---|---|
+| GET | `/api/v1/period/members/search?siteId=&groupnum=&carNumber=&at=` | 유효기간·사용여부·주차구역을 적용한 등록회원 조회 |
+| GET | `/api/v1/period/open?siteId=&groupnum=&carNumber=` | 등록차량 미출차 내역 조회 |
+
+등록차량은 일반차량 조회·요금계산 API와 분리한다.
 
 ### POST `/api/v1/fees/calculate`
 
