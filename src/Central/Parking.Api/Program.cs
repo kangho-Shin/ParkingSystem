@@ -24,6 +24,7 @@ namespace Parking.Api
             builder.Services.AddScoped<ISiteConfigurationRepository>(_ => new SiteConfigurationRepository(connectionString));
             builder.Services.AddScoped<CreateEntryHandler>();
             builder.Services.AddScoped(_ => new FeeCalculationService(connectionString));
+            builder.Services.AddScoped<ParkingQuoteService>();
 
             WebApplication app = builder.Build();
             app.MapGet("/", () => "Parking API");
