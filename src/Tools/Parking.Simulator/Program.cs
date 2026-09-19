@@ -19,7 +19,7 @@ if (!TryGetLong(args, "--site", out long siteId) ||
 
 string baseUrl = TryGetValue(args, "--url", out string configuredUrl)
     ? configuredUrl
-    : "http://localhost:57906/";
+    : "http://localhost:5200/";
 Guid eventId = TryGetValue(args, "--event", out string eventText) &&
                Guid.TryParse(eventText, out Guid configuredEventId)
     ? configuredEventId
@@ -71,4 +71,4 @@ static bool TryGetValue(string[] values, string name, out string value)
 }
 
 static void PrintUsage() => Console.WriteLine(
-    "사용법: parking-simulator entry --site 1 --lane 10 --device 101 --car 12가3456 [--url http://localhost:57906] [--event UUID] [--repeat-event]");
+    "사용법: parking-simulator entry --site 1 --lane 10 --device 101 --car 12가3456 [--url http://localhost:5200] [--event UUID] [--repeat-event]");
