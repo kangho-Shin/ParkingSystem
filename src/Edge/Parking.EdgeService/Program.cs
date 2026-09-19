@@ -22,6 +22,7 @@ namespace Parking.EdgeService
 
             builder.Services.AddSingleton(new SqliteOutboxRepository(sqliteConnectionString));
             builder.Services.AddSingleton(new LocalConfigurationStore(sqliteConnectionString));
+            builder.Services.AddSingleton(new EdgeMonitoringRepository(sqliteConnectionString));
             builder.Services.AddHttpClient<GatewayClient>(client =>
             {
                 client.BaseAddress = new Uri(builder.Configuration["Gateway:BaseUrl"] ?? "http://localhost:5100/");
@@ -36,6 +37,8 @@ namespace Parking.EdgeService
             app.Services.GetRequiredService<SqliteOutboxRepository>()
                 .InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
             app.Services.GetRequiredService<LocalConfigurationStore>()
+                .InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+            app.Services.GetRequiredService<EdgeMonitoringRepository>()
                 .InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
 
             app.MapGet("/", () => "Parking Edge Service");
