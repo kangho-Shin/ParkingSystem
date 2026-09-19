@@ -28,6 +28,7 @@ namespace Parking.EdgeService
                 client.Timeout = TimeSpan.FromSeconds(10);
             });
             builder.Services.AddScoped<EdgeEventService>();
+            builder.Services.AddScoped<PaymentRelayService>();
             builder.Services.AddHostedService<OutboxWorker>();
             builder.Services.AddHostedService<ConfigurationSyncWorker>();
 

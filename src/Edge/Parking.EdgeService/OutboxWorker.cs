@@ -22,6 +22,18 @@ namespace Parking.EdgeService
                 {
                     try
                     {
+                        if (message.EventType == "Payment")
+                        {
+                            HttpRelayResponse paymentResponse =
+                                await _gatewayClient.RelayPaymentCompleteAsync(
+                                    message.PayloadJson,
+                                    stoppingToken);
+                            if (paymentResponse.StatusCode >= 500)
+                                throw new HttpRequestException("결제결과 중앙 전송에 실패했습니다.");
+                            await _outbox.MarkCompletedAsync(message.EventId, stoppingToken);
+                            continue;
+                        }
+
                         FieldEventResponse response;
                         if (message.EventType == "Exit")
                         {

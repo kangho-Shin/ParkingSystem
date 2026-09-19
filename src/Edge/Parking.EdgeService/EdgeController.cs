@@ -12,17 +12,20 @@ namespace Parking.EdgeService
         private readonly LocalConfigurationStore _configurationStore;
         private readonly IConfiguration _configuration;
         private readonly GatewayClient _gatewayClient;
+        private readonly PaymentRelayService _paymentRelayService;
 
         public EdgeController(
             EdgeEventService service,
             LocalConfigurationStore configurationStore,
             IConfiguration configuration,
-            GatewayClient gatewayClient)
+            GatewayClient gatewayClient,
+            PaymentRelayService paymentRelayService)
         {
             _service = service;
             _configurationStore = configurationStore;
             _configuration = configuration;
             _gatewayClient = gatewayClient;
+            _paymentRelayService = paymentRelayService;
         }
 
         [HttpGet("local/config")]
@@ -71,12 +74,20 @@ namespace Parking.EdgeService
         }
 
         [HttpPost("local/payments/complete")]
-        public Task<IActionResult> CompletePaymentAsync(
+        public async Task<IActionResult> CompletePaymentAsync(
             [FromBody] JToken request,
-            CancellationToken cancellationToken) =>
-            RelayAsync(() => _gatewayClient.RelayPaymentCompleteAsync(
+            CancellationToken cancellationToken)
+        {
+            if (!Guid.TryParse(request["PaymentId"]?.ToString(), out Guid paymentId) ||
+                paymentId == Guid.Empty)
+                return BadRequest();
+
+            HttpRelayResponse response = await _paymentRelayService.CompleteAsync(
+                paymentId,
                 request.ToString(Newtonsoft.Json.Formatting.None),
-                cancellationToken));
+                cancellationToken);
+            return ToContentResult(response);
+        }
 
         private static async Task<IActionResult> RelayAsync(
             Func<Task<HttpRelayResponse>> action)
@@ -84,12 +95,7 @@ namespace Parking.EdgeService
             try
             {
                 HttpRelayResponse response = await action();
-                return new ContentResult
-                {
-                    StatusCode = response.StatusCode,
-                    ContentType = "application/json; charset=utf-8",
-                    Content = response.Content
-                };
+                return ToContentResult(response);
             }
             catch (HttpRequestException)
             {
@@ -100,5 +106,12 @@ namespace Parking.EdgeService
                 return new StatusCodeResult(StatusCodes.Status503ServiceUnavailable);
             }
         }
+
+        private static ContentResult ToContentResult(HttpRelayResponse response) => new()
+        {
+            StatusCode = response.StatusCode,
+            ContentType = "application/json; charset=utf-8",
+            Content = response.Content
+        };
     }
 }

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Parking.EdgeService;
 using Parking.Contracts;
 
 namespace Parking.Api.Tests;
@@ -76,6 +77,69 @@ public sealed class FeeQuoteRelayTests
         Assert.Equal(requestJson, handler.RequestContent);
         Assert.Equal(409, result.StatusCode);
         Assert.Equal("{\"Accepted\":false}", result.Content);
+    }
+
+    [Fact]
+    public async Task 결제완료요청은_전송전에_SQLite_Outbox에_저장한다()
+    {
+        string databasePath = Path.Combine(Path.GetTempPath(), $"parking-{Guid.NewGuid():N}.db");
+        try
+        {
+            SqliteOutboxRepository repository = new($"Data Source={databasePath}");
+            await repository.InitializeAsync(CancellationToken.None);
+            Guid paymentId = Guid.NewGuid();
+            string json = $"{{\"PaymentId\":\"{paymentId:D}\",\"PaidAmount\":600}}";
+
+            await repository.EnqueuePaymentAsync(paymentId, json, CancellationToken.None);
+            IReadOnlyList<OutboxMessage> messages = await repository.GetPendingAsync(
+                10,
+                CancellationToken.None);
+
+            OutboxMessage message = Assert.Single(messages);
+            Assert.Equal(paymentId, message.EventId);
+            Assert.Equal("Payment", message.EventType);
+            Assert.Equal(json, message.PayloadJson);
+        }
+        finally
+        {
+            if (File.Exists(databasePath))
+                File.Delete(databasePath);
+        }
+    }
+
+    [Fact]
+    public async Task 중앙전송이_실패한_결제결과는_대기상태로_남긴다()
+    {
+        string databasePath = Path.Combine(Path.GetTempPath(), $"parking-{Guid.NewGuid():N}.db");
+        try
+        {
+            SqliteOutboxRepository repository = new($"Data Source={databasePath}");
+            await repository.InitializeAsync(CancellationToken.None);
+            CaptureHandler handler = new(HttpStatusCode.ServiceUnavailable, "");
+            GatewayClient gatewayClient = new(new HttpClient(handler)
+            {
+                BaseAddress = new Uri("http://localhost/")
+            });
+            PaymentRelayService service = new(repository, gatewayClient);
+            Guid paymentId = Guid.NewGuid();
+            string json = $"{{\"PaymentId\":\"{paymentId:D}\",\"PaidAmount\":600}}";
+
+            HttpRelayResponse result = await service.CompleteAsync(
+                paymentId,
+                json,
+                CancellationToken.None);
+            IReadOnlyList<OutboxMessage> messages = await repository.GetPendingAsync(
+                10,
+                CancellationToken.None);
+
+            Assert.Equal(202, result.StatusCode);
+            Assert.Equal(paymentId, Assert.Single(messages).EventId);
+        }
+        finally
+        {
+            if (File.Exists(databasePath))
+                File.Delete(databasePath);
+        }
     }
 
     private sealed class CaptureHandler : HttpMessageHandler

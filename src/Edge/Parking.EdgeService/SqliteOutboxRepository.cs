@@ -48,8 +48,27 @@ namespace Parking.EdgeService
         public Task EnqueueExitAsync(ExitEventRequest request, CancellationToken cancellationToken) =>
             EnqueueAsync(request.EventId, "Exit", request, cancellationToken);
 
+        public Task EnqueuePaymentAsync(
+            Guid paymentId,
+            string payloadJson,
+            CancellationToken cancellationToken) =>
+            EnqueueJsonAsync(paymentId, "Payment", payloadJson, cancellationToken);
+
         private async Task EnqueueAsync<T>(
             Guid eventId, string eventType, T request, CancellationToken cancellationToken)
+        {
+            await EnqueueJsonAsync(
+                eventId,
+                eventType,
+                JsonConvert.SerializeObject(request),
+                cancellationToken);
+        }
+
+        private async Task EnqueueJsonAsync(
+            Guid eventId,
+            string eventType,
+            string payloadJson,
+            CancellationToken cancellationToken)
         {
             const string sql = """
                 INSERT OR IGNORE INTO outbox_message
@@ -61,7 +80,7 @@ namespace Parking.EdgeService
             {
                 EventId = eventId.ToString("D"),
                 EventType = eventType,
-                Payload = JsonConvert.SerializeObject(request),
+                Payload = payloadJson,
                 Now = DateTimeOffset.UtcNow.ToString("O")
             }, cancellationToken: cancellationToken));
         }
