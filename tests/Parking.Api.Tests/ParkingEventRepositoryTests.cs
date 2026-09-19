@@ -31,7 +31,12 @@ public class ParkingEventRepositoryTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         await connection.ExecuteAsync(
-            "DELETE FROM payment; DELETE FROM parking_session; DELETE FROM parking_event;");
+            """
+            DELETE FROM parking_session_discount;
+            DELETE FROM payment;
+            DELETE FROM parking_session;
+            DELETE FROM parking_event;
+            """);
     }
 
     private static async Task<long> GetSessionCountAsync()
