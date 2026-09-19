@@ -1,5 +1,15 @@
 # API 규격
 
+## LPR TCP 프로토콜
+
+- 수신: `0x02 + CP949 파일명 + 0x03`
+- 기본 포트: `29200`
+- 최대 DATA: 1,024바이트
+- 성공: `0x02 + ACK|EventId + 0x03`
+- 실패: `0x02 + NAK|EventId|ErrorCode + 0x03`
+
+파일명은 `SSS_GGG_DDD_LLL_Direction_yyyyMMddHHmmssfff_CarNumber_EventId.jpg`이며 EventId는 Guid `N` 형식 32자리다. 상세 검증과 오류코드는 `docs/superpowers/specs/2026-09-19-lpr-lane-processor-design.md`를 따른다.
+
 ## 1. 공통 규칙
 
 - 형식: HTTP JSON, UTF-8
