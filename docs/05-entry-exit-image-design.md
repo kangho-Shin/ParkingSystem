@@ -1,6 +1,6 @@
 # 입출차 및 차량 이미지 설계
 
-현재 문서는 다음 구현 단계에서 적용할 확정 설계다. 아직 DB와 소스에는 반영되지 않았다.
+현재 문서는 입출차 및 이미지 구현의 확정 설계다.
 
 ## 1. 공통 원칙
 
@@ -10,7 +10,7 @@
 - `EventType`: `Entry` 또는 `Exit`
 - `Sitenum`, `Groupnum`, `LaneId`, `DeviceId`
 - 차량번호
-- 발생시각
+- 입차 `InDateTime` 또는 출차 `OutDateTime`
 - 입차 `InImage` 또는 출차 `OutImage` 경로
 
 요청의 `EventType`과 `parking_lane.Direction`이 다르면 요청을 거부한다.
@@ -122,7 +122,7 @@ SSS_GGG_LLL_Exit_yyyyMMddHHmmssfff_차량번호_EventId.jpg
 
 - 같은 `EventId`는 최초 처리 결과를 반환한다.
 - 주·보조 LPR이 같은 차량을 동시에 인식할 수 있으므로 짧은 시간 내 동일 차량 중복입차도 검사한다.
-- 중복 검사 기준은 사이트, 차로 방향, 차량번호, 촬영시각을 사용한다.
+- 중복 검사 기준은 사이트, 차로 방향, 차량번호, `InDateTime` 또는 `OutDateTime`을 사용한다.
 - 보조 LPR 결과 결합 규칙은 LprHost 구현 단계에서 별도로 확정한다.
 
 ## 9. 다음 구현 순서
