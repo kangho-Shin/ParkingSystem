@@ -93,8 +93,13 @@
 |---|---|---|
 | GET | `/api/v1/period/members/search?siteId=&groupnum=&carNumber=&at=` | 유효기간·사용여부·주차구역을 적용한 등록회원 조회 |
 | GET | `/api/v1/period/open?siteId=&groupnum=&carNumber=` | 등록차량 미출차 내역 조회 |
+| GET | `/api/v1/period/members?siteId=&groupnum=&carNumber=` | 등록회원 관리목록 조회 |
+| GET | `/api/v1/period/members/{memberId}` | 등록회원 한 건 조회 |
+| POST | `/api/v1/period/members` | 등록회원 추가 |
+| PUT | `/api/v1/period/members/{memberId}` | 등록회원 전체 수정 |
+| DELETE | `/api/v1/period/members/{memberId}` | 등록회원 실제 삭제 |
 
-등록차량은 일반차량 조회·요금계산 API와 분리한다.
+등록차량은 일반차량 조회·요금계산 API와 분리한다. `useflag`는 사용·사용중지 상태이며 삭제 표시에 사용하지 않는다. DELETE 요청은 `tperiodmember` 행을 실제 삭제한다.
 
 ### POST `/api/v1/fees/calculate`
 
