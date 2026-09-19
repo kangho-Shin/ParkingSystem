@@ -42,6 +42,42 @@ public sealed class FeeQuoteRelayTests
         Assert.Equal("{\"PayableAmount\":600}", result.Content);
     }
 
+    [Fact]
+    public async Task Gateway는_결제완료_JSON을_ParkingApi로_전달한다()
+    {
+        const string requestJson = "{\"PaymentId\":\"11111111-1111-1111-1111-111111111111\",\"PaidAmount\":600}";
+        CaptureHandler handler = new(HttpStatusCode.OK, "{\"Accepted\":true}");
+        HttpClient httpClient = new(handler) { BaseAddress = new Uri("http://localhost/") };
+        Parking.EdgeGateway.ParkingApiClient client = new(httpClient);
+
+        HttpRelayResponse result = await client.RelayPaymentCompleteAsync(
+            requestJson,
+            CancellationToken.None);
+
+        Assert.Equal("/api/v1/payments/complete", handler.RequestPath);
+        Assert.Equal(requestJson, handler.RequestContent);
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal("{\"Accepted\":true}", result.Content);
+    }
+
+    [Fact]
+    public async Task EdgeService는_결제완료_JSON을_Gateway로_전달한다()
+    {
+        const string requestJson = "{\"PaymentId\":\"11111111-1111-1111-1111-111111111111\",\"PaidAmount\":600}";
+        CaptureHandler handler = new(HttpStatusCode.Conflict, "{\"Accepted\":false}");
+        HttpClient httpClient = new(handler) { BaseAddress = new Uri("http://localhost/") };
+        Parking.EdgeService.GatewayClient client = new(httpClient);
+
+        HttpRelayResponse result = await client.RelayPaymentCompleteAsync(
+            requestJson,
+            CancellationToken.None);
+
+        Assert.Equal("/api/v1/edge/payments/complete", handler.RequestPath);
+        Assert.Equal(requestJson, handler.RequestContent);
+        Assert.Equal(409, result.StatusCode);
+        Assert.Equal("{\"Accepted\":false}", result.Content);
+    }
+
     private sealed class CaptureHandler : HttpMessageHandler
     {
         private readonly HttpStatusCode _statusCode;

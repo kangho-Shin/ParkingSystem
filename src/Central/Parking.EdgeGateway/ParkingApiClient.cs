@@ -20,6 +20,11 @@ namespace Parking.EdgeGateway
             CancellationToken cancellationToken) =>
             PostRawAsync("api/v1/fees/quote", json, cancellationToken);
 
+        public Task<HttpRelayResponse> RelayPaymentCompleteAsync(
+            string json,
+            CancellationToken cancellationToken) =>
+            PostRawAsync("api/v1/payments/complete", json, cancellationToken);
+
         public async Task<SiteConfiguration> GetSiteConfigurationAsync(
             long siteId, CancellationToken cancellationToken)
         {

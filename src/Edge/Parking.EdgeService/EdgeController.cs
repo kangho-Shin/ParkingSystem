@@ -69,5 +69,36 @@ namespace Parking.EdgeService
                 return StatusCode(StatusCodes.Status503ServiceUnavailable);
             }
         }
+
+        [HttpPost("local/payments/complete")]
+        public Task<IActionResult> CompletePaymentAsync(
+            [FromBody] JToken request,
+            CancellationToken cancellationToken) =>
+            RelayAsync(() => _gatewayClient.RelayPaymentCompleteAsync(
+                request.ToString(Newtonsoft.Json.Formatting.None),
+                cancellationToken));
+
+        private static async Task<IActionResult> RelayAsync(
+            Func<Task<HttpRelayResponse>> action)
+        {
+            try
+            {
+                HttpRelayResponse response = await action();
+                return new ContentResult
+                {
+                    StatusCode = response.StatusCode,
+                    ContentType = "application/json; charset=utf-8",
+                    Content = response.Content
+                };
+            }
+            catch (HttpRequestException)
+            {
+                return new StatusCodeResult(StatusCodes.Status503ServiceUnavailable);
+            }
+            catch (TaskCanceledException)
+            {
+                return new StatusCodeResult(StatusCodes.Status503ServiceUnavailable);
+            }
+        }
     }
 }
