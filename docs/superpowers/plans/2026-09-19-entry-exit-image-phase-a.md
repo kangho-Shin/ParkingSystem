@@ -82,7 +82,6 @@ git commit -m "feat: store parking lifecycle with outflag"
 
 **Files:**
 - Create: `src/BuildingBlocks/Parking.Contracts/ParkingEventType.cs`
-- Create: `src/BuildingBlocks/Parking.Contracts/VehicleImage.cs`
 - Create: `src/BuildingBlocks/Parking.Contracts/VehicleImageName.cs`
 - Modify: `src/BuildingBlocks/Parking.Contracts/FieldEventRequest.cs`
 - Modify: `src/BuildingBlocks/Parking.Contracts/ExitEventRequest.cs`
@@ -90,7 +89,7 @@ git commit -m "feat: store parking lifecycle with outflag"
 
 **Interfaces:**
 - Produces: `ParkingEventType.Entry`, `ParkingEventType.Exit`, `VehicleImage`, `VehicleImageName.Create(...)`
-- Produces: 입·출차 요청의 `Groupnum`, `EventType`, `Image`
+- Produces: 입차 요청의 `Groupnum`, `EventType`, `InImage`; 출차 요청의 `OutImage`
 
 - [ ] **Step 1: 파일명과 방향 계약 실패 테스트 작성**
 
@@ -104,7 +103,7 @@ Expected: FAIL because the image contract and formatter do not exist.
 
 - [ ] **Step 3: 최소 계약 구현**
 
-기존 생성자 호출을 유지하도록 새 필드는 레코드 끝에 기본값으로 추가한다. `VehicleImage`는 `FileName`, `LocalPath`, `CapturedAt`을 가진다. 파일명 숫자는 `D3`, 시각은 `yyyyMMddHHmmssfff`, EventId는 구분자 없는 전체 UUID를 사용한다.
+기존 생성자 호출을 유지하도록 새 필드는 레코드 끝에 기본값으로 추가한다. 입차는 `InImage`, 출차는 `OutImage` 문자열에 저장 경로를 보관한다. 파일명 숫자는 `D3`, 시각은 `yyyyMMddHHmmssfff`, EventId는 구분자 없는 전체 UUID를 사용한다.
 
 - [ ] **Step 4: 계약 테스트 실행**
 
