@@ -134,6 +134,26 @@
 
 미출차 차량이 없으면 HTTP 404, 요청 오류는 HTTP 400.
 
+### GET `/api/v1/parking/search`
+
+쿼리: `siteId`, `groupnum`, `carNumber`, `exitAt`.
+
+- `carNumber`가 4자리이면 뒤 4자리, 그 외에는 전체번호로 조회한다.
+- `Sitenum`, `Groupnum`, `outflag<>'O'` 조건을 적용한다.
+- 여러 건이면 최신 입차순 `Candidates`를 반환한다.
+- 한 건이면 즉시 `QuoteParkingFeeResponse`를 반환한다.
+
+### POST `/api/v1/fees/quote/session`
+
+```json
+{
+  "ParkingSessionId": 53,
+  "ExitAt": "2026-09-19T09:00:00+09:00"
+}
+```
+
+여러 후보 중 선택한 주차 건만 다시 계산한다. 결제할 금액이 있으면 `I`를 유지하고, 최종 결제금액이 0원이면 `X`로 변경한다.
+
 ### POST `/api/v1/payments/complete`
 
 요청:
@@ -183,6 +203,8 @@
 | POST | `/api/v1/edge/exits` | API `/api/v1/parking/exits` |
 | GET | `/api/v1/edge/config/sites/{siteId}` | API `/api/v1/config/sites/{siteId}` |
 | POST | `/api/v1/edge/fees/quote` | API `/api/v1/fees/quote` |
+| GET | `/api/v1/edge/parking/search` | API `/api/v1/parking/search` |
+| POST | `/api/v1/edge/fees/quote/session` | API `/api/v1/fees/quote/session` |
 | POST | `/api/v1/edge/payments/complete` | API `/api/v1/payments/complete` |
 
 요금·결제 중계는 JSON 본문과 HTTP 상태를 그대로 반환한다. 연결 실패와 시간초과는 HTTP 503이다.
@@ -195,6 +217,8 @@
 | POST | `/api/v1/edge/events` | 입차를 Outbox 저장 후 중앙 전송 |
 | POST | `/api/v1/edge/exits` | 출차를 Outbox 저장 후 중앙 전송 |
 | POST | `/api/v1/local/fees/quote` | 요금 견적 중계 |
+| GET | `/api/v1/local/parking/search` | 전체번호·뒤 4자리 검색 중계 |
+| POST | `/api/v1/local/fees/quote/session` | 선택 주차 건 견적 중계 |
 | POST | `/api/v1/local/payments/complete` | 결제 결과 Outbox 저장 후 중계 |
 
 결제 중앙 전송이 실패하면 HTTP 202를 반환한다.
@@ -207,7 +231,9 @@
 }
 ```
 
-## 6. 구현 예정 API
+## 6. 등록차량 연동 예정 API
+
+일반차량 검색은 구현됐으며, 아래 등록차량 통합은 실제 운영 테이블 스키마를 받은 뒤 진행한다.
 
 ### GET `/api/v1/parking/search?siteId={siteId}&groupnum={groupnum}&carNumber={number}`
 
@@ -222,7 +248,7 @@
 - 조회·계산만으로는 `outflag=I` 유지
 - 결제완료 또는 최종요금 0원 확정 시 `outflag=X`
 
-### POST `/api/v1/fees/quote/session`
+### 등록차량 선택 정산
 
 여러 차량 중 정산기에서 선택한 주차 건을 다시 계산한다.
 
