@@ -20,7 +20,6 @@ namespace Parking.Api.Features.Fees
         public int Sitenum { get; set; }
         public string CarNumber { get; set; } = "";
         public DateTimeOffset ExitAt { get; set; }
-        public List<int> DiscountKeys { get; set; } = new();
     }
 
     public sealed record QuoteParkingFeeResponse(
@@ -28,7 +27,9 @@ namespace Parking.Api.Features.Fees
         string CarNumber,
         DateTimeOffset EntryAt,
         DateTimeOffset ExitAt,
-        ParkingFeeResult Fee);
+        ParkingFeeResult Fee,
+        long PreviousPaidAmount,
+        long PayableAmount);
 
     [ApiController]
     [Route("api/v1/fees")]
@@ -36,13 +37,16 @@ namespace Parking.Api.Features.Fees
     {
         private readonly FeeCalculationService _service;
         private readonly IParkingExitRepository _parkingRepository;
+        private readonly ISettlementRepository _settlementRepository;
 
         public FeeCalculationController(
             FeeCalculationService service,
-            IParkingExitRepository parkingRepository)
+            IParkingExitRepository parkingRepository,
+            ISettlementRepository settlementRepository)
         {
             _service = service;
             _parkingRepository = parkingRepository;
+            _settlementRepository = settlementRepository;
         }
 
         [HttpPost("calculate")]
@@ -74,6 +78,10 @@ namespace Parking.Api.Features.Fees
             if (session is null)
                 return NotFound();
 
+            SettlementData settlement = await _settlementRepository.GetAsync(
+                session.ParkingSessionId,
+                cancellationToken);
+
             var calculationRequest = new CalculateParkingFeeRequest
             {
                 Sitenum = request.Sitenum,
@@ -81,19 +89,22 @@ namespace Parking.Api.Features.Fees
                 EntryAt = session.EntryAt.ToOffset(request.ExitAt.Offset).DateTime,
                 ExitAt = request.ExitAt.DateTime,
                 CarType = session.CarType,
-                DiscountKeys = request.DiscountKeys
+                DiscountKeys = settlement.DiscountKeys.ToList()
             };
 
             if (!IsValid(calculationRequest))
                 return BadRequest();
 
             ParkingFeeResult fee = await _service.CalculateAsync(calculationRequest, cancellationToken);
+            long payableAmount = Math.Max((long)fee.FinalFee - settlement.PaidAmount, 0);
             return Ok(new QuoteParkingFeeResponse(
                 session.ParkingSessionId,
                 session.CarNumber,
                 session.EntryAt,
                 request.ExitAt,
-                fee));
+                fee,
+                settlement.PaidAmount,
+                payableAmount));
         }
 
         private static bool IsValid(CalculateParkingFeeRequest request) =>

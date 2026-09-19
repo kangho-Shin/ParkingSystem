@@ -19,6 +19,7 @@ namespace Parking.Api
             builder.Services.AddScoped<IParkingEventRepository>(_ => new ParkingEventRepository(connectionString));
             builder.Services.AddScoped<IParkingExitRepository>(_ => new ParkingExitRepository(connectionString));
             builder.Services.AddScoped<IPaymentRepository>(_ => new PaymentRepository(connectionString));
+            builder.Services.AddScoped<ISettlementRepository>(_ => new SettlementRepository(connectionString));
             builder.Services.AddScoped<ISiteConfigurationRepository>(_ => new SiteConfigurationRepository(connectionString));
             builder.Services.AddScoped<CreateEntryHandler>();
             builder.Services.AddScoped(_ => new FeeCalculationService(connectionString));
