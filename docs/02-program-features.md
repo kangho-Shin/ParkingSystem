@@ -49,6 +49,11 @@ Windows 서비스로 실행되는 현장 중계 프로그램이다.
 - 5분 간격으로 현장 설정을 중앙에서 받아 SQLite에 저장
 - 사용자 실행 시 `%LOCALAPPDATA%\ParkingSystem\edge.db` 사용
 - Windows 서비스 실행 시 `%PROGRAMDATA%\ParkingSystem\edge.db` 사용
+- 기본 TCP 29200 포트에서 LPR 인식 파일명 수신
+- STX/ETX와 코드페이지 949 패킷 파싱
+- 파일명의 현장·그룹·장비·차로·방향을 설정 캐시와 검증
+- 정상 인식 결과를 기존 입차·출차·Outbox 흐름으로 전달
+- 처리 결과를 `ACK|EventId` 또는 `NAK|EventId|ErrorCode`로 응답
 
 ## Parking.FeeEngine
 
@@ -81,6 +86,17 @@ DB와 화면에 의존하지 않는 공통 요금 계산 라이브러리다.
 - 1초 간격 자동 갱신, 연결 실패 시 마지막 정상자료 유지
 
 기본 EdgeService 주소는 `http://localhost:5200/`이며 `Parking.EdgeManager/appsettings.json`에서 변경한다. LPR 이미지 폴더는 EdgeService의 `Edge:ImageDirectory`에 설정하며 EdgeManager는 이미지 폴더와 SQLite를 직접 열지 않는다.
+
+## LPR TCP 입력
+
+LPR은 `STX(0x02) + KS5601(CP949) 파일명 + ETX(0x03)` 형식으로 EdgeService에 전송한다.
+
+```text
+SSS_GGG_DDD_LLL_Entry_yyyyMMddHHmmssfff_차량번호_EventId.jpg
+SSS_GGG_DDD_LLL_Exit_yyyyMMddHHmmssfff_차량번호_EventId.jpg
+```
+
+EdgeService는 `STX + ACK|EventId + ETX` 또는 `STX + NAK|EventId|ErrorCode + ETX`로 응답한다. 기본 포트는 29200이며 `Edge:LprListenPort`가 0이면 TCP 수신기를 실행하지 않는다. 미정산이나 중앙 장애로 출차가 차단돼도 요청 자체가 정상 처리됐으면 ACK를 반환한다.
 
 ## Parking.Central.Data
 
