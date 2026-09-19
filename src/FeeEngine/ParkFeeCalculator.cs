@@ -18,7 +18,20 @@ public sealed class ParkingFeeCalculator
         if (request.ExitAt <= request.EntryAt)
             return new ParkingFeeResult();
 
-        DateTime effectiveEntryAt = request.EntryAt;
+        int parkingMinutes = (int)Math.Ceiling(
+            (request.ExitAt - request.EntryAt).TotalMinutes);
+
+        if (_configuration.GraceTime > 0 &&
+            parkingMinutes <= _configuration.GraceTime)
+        {
+            return new ParkingFeeResult
+            {
+                ParkingMinutes = parkingMinutes
+            };
+        }
+
+        DateTime effectiveEntryAt = request.EntryAt.AddMinutes(
+            Math.Max(_configuration.ServiceTime, 0));
         DateTime effectiveExitAt = request.ExitAt;
         int discountMinutes = GetDiscounts(request.DiscountKeys, DiscountType.TimeMinute).Sum(x => x.Value);
 
