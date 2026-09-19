@@ -9,19 +9,22 @@ public sealed class LprLaneProcessor
     private readonly LocalConfigurationStore _configurationStore;
     private readonly EdgeEventService _eventService;
     private readonly ILogger<LprLaneProcessor> _logger;
+    private readonly IDisplayBoardOutput? _displayOutput;
 
     public LprLaneProcessor(
         IConfiguration configuration,
         LprFileNameParser parser,
         LocalConfigurationStore configurationStore,
         EdgeEventService eventService,
-        ILogger<LprLaneProcessor> logger)
+        ILogger<LprLaneProcessor> logger,
+        IDisplayBoardOutput? displayOutput = null)
     {
         _siteId = configuration.GetValue<long>("Edge:SiteId");
         _parser = parser;
         _configurationStore = configurationStore;
         _eventService = eventService;
         _logger = logger;
+        _displayOutput = displayOutput;
     }
 
     public async Task<LprProcessResult> ProcessAsync(
@@ -94,6 +97,9 @@ public sealed class LprLaneProcessor
                         OutImage: recognition.ImageFileName),
                     cancellationToken);
             }
+
+            if (_displayOutput is not null)
+                await _displayOutput.SendAsync(recognition, response, cancellationToken);
 
             return new LprProcessResult(true, recognition.EventId, null, response);
         }
