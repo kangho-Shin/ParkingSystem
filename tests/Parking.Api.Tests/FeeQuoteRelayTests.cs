@@ -85,7 +85,7 @@ public sealed class FeeQuoteRelayTests
         string databasePath = Path.Combine(Path.GetTempPath(), $"parking-{Guid.NewGuid():N}.db");
         try
         {
-            SqliteOutboxRepository repository = new($"Data Source={databasePath}");
+            SqliteOutboxRepository repository = new($"Data Source={databasePath};Pooling=False");
             await repository.InitializeAsync(CancellationToken.None);
             Guid paymentId = Guid.NewGuid();
             string json = $"{{\"PaymentId\":\"{paymentId:D}\",\"PaidAmount\":600}}";
@@ -113,7 +113,7 @@ public sealed class FeeQuoteRelayTests
         string databasePath = Path.Combine(Path.GetTempPath(), $"parking-{Guid.NewGuid():N}.db");
         try
         {
-            SqliteOutboxRepository repository = new($"Data Source={databasePath}");
+            SqliteOutboxRepository repository = new($"Data Source={databasePath};Pooling=False");
             await repository.InitializeAsync(CancellationToken.None);
             CaptureHandler handler = new(HttpStatusCode.ServiceUnavailable, "");
             GatewayClient gatewayClient = new(new HttpClient(handler)
