@@ -27,6 +27,7 @@ CREATE TABLE parking_device (
     devicetype VARCHAR(30) NOT NULL,
     devicename VARCHAR(100) NOT NULL,
     ipaddr VARCHAR(45) NULL,
+    port INT NULL,
     useflag TINYINT(1) NOT NULL DEFAULT 1,
     updatedat DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     PRIMARY KEY (deviceid),
