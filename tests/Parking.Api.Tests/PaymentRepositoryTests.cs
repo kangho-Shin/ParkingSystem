@@ -37,7 +37,7 @@ public sealed class PaymentRepositoryTests
         Assert.True(first.Accepted);
         Assert.True(second.Accepted);
         Assert.Equal(1, await GetPaymentCountAsync(parkingSessionId));
-        Assert.Equal("Paid", await GetSessionStatusAsync(parkingSessionId));
+        Assert.Equal("X", await GetSessionOutFlagAsync(parkingSessionId));
     }
 
     private static async Task<long> CreateSessionAsync()
@@ -45,8 +45,8 @@ public sealed class PaymentRepositoryTests
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<long>("""
             INSERT INTO parking_session
-            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,status)
-            VALUES (1,@EntryEventId,'12가3456',1,1,10,UTC_TIMESTAMP(6),'Entered');
+            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,outflag)
+            VALUES (1,@EntryEventId,'12가3456',1,1,10,UTC_TIMESTAMP(6),'I');
             SELECT LAST_INSERT_ID();
             """, new { EntryEventId = Guid.NewGuid().ToByteArray() });
     }
@@ -59,11 +59,11 @@ public sealed class PaymentRepositoryTests
             new { ParkingSessionId = parkingSessionId });
     }
 
-    private static async Task<string> GetSessionStatusAsync(long parkingSessionId)
+    private static async Task<string> GetSessionOutFlagAsync(long parkingSessionId)
     {
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<string>(
-            "SELECT status FROM parking_session WHERE xindex=@ParkingSessionId;",
+            "SELECT outflag FROM parking_session WHERE xindex=@ParkingSessionId;",
             new { ParkingSessionId = parkingSessionId });
     }
 }

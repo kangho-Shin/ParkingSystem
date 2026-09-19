@@ -21,7 +21,7 @@ internal sealed class PaymentRow
 internal sealed class PaymentSessionRow
 {
     public long SiteId { get; set; }
-    public string Status { get; set; } = "";
+    public string OutFlag { get; set; } = "";
 }
 
 public sealed class PaymentRepository : IPaymentRepository
@@ -60,7 +60,7 @@ public sealed class PaymentRepository : IPaymentRepository
 
             PaymentSessionRow? session = await connection.QuerySingleOrDefaultAsync<PaymentSessionRow>(
                 new CommandDefinition("""
-                    SELECT sitenum SiteId, status Status
+                    SELECT sitenum SiteId, outflag OutFlag
                     FROM parking_session
                     WHERE xindex=@ParkingSessionId
                     FOR UPDATE;
@@ -75,7 +75,7 @@ public sealed class PaymentRepository : IPaymentRepository
                 return Failure(request, "PARKING_SESSION_NOT_FOUND", "주차내역이 없습니다.");
             }
 
-            if (session.Status == "Exited")
+            if (session.OutFlag == "O")
             {
                 await transaction.CommitAsync(cancellationToken);
                 return Failure(request, "PARKING_SESSION_EXITED", "이미 출차된 주차내역입니다.");
@@ -123,7 +123,7 @@ public sealed class PaymentRepository : IPaymentRepository
 
             await connection.ExecuteAsync(new CommandDefinition("""
                 UPDATE parking_session
-                SET status='Paid', paydate=@PaidAtUtc
+                SET outflag='X', paydate=@PaidAtUtc
                 WHERE xindex=@ParkingSessionId;
                 """,
                 new

@@ -34,9 +34,9 @@ public sealed class ParkingExitRepository : IParkingExitRepository
         const string sql = """
             SELECT xindex ParkingSessionId, sitenum SiteId, carnum CarNumber,
                    groupnum Groupnum, cartype CarType, inlaneid EntryLaneId,
-                   indate EntryAt, paydate Paydate, status Status
+                   indate EntryAt, paydate Paydate, outflag Status
             FROM parking_session
-            WHERE sitenum=@SiteId AND carnum=@CarNumber AND status<>'Exited'
+            WHERE sitenum=@SiteId AND carnum=@CarNumber AND outflag<>'O'
             ORDER BY indate DESC LIMIT 1;
             """;
         await using MySqlConnection connection = new(_connectionString);
@@ -99,9 +99,9 @@ public sealed class ParkingExitRepository : IParkingExitRepository
             }
 
             ExitParkingSessionRow? session = await connection.QuerySingleOrDefaultAsync<ExitParkingSessionRow>(new CommandDefinition("""
-                SELECT xindex ParkingSessionId, status Status
+                SELECT xindex ParkingSessionId, outflag Status
                 FROM parking_session
-                WHERE sitenum=@SiteId AND carnum=@CarNumber AND status<>'Exited'
+                WHERE sitenum=@SiteId AND carnum=@CarNumber AND outflag<>'O'
                 ORDER BY indate DESC LIMIT 1 FOR UPDATE;
                 """, new { request.SiteId, request.CarNumber }, transaction, cancellationToken: cancellationToken));
 
@@ -124,9 +124,9 @@ public sealed class ParkingExitRepository : IParkingExitRepository
             {
                 await connection.ExecuteAsync(new CommandDefinition("""
                     UPDATE parking_session SET outeventid=@EventId, outlaneid=@LaneId,
-                    outdate=@OccurredAtUtc, status='Exited'
+                    outdeviceid=@DeviceId, outdate=@OccurredAtUtc, outflag='O'
                     WHERE xindex=@ParkingSessionId;
-                    """, new { EventId = eventId, request.LaneId, OccurredAtUtc = request.OccurredAt.UtcDateTime, session.ParkingSessionId },
+                    """, new { EventId = eventId, request.LaneId, request.DeviceId, OccurredAtUtc = request.OccurredAt.UtcDateTime, session.ParkingSessionId },
                     transaction, cancellationToken: cancellationToken));
                 result = new FieldEventResponse(request.EventId, true, session.ParkingSessionId, "EXIT_ACCEPTED", "출차되었습니다.", true);
             }

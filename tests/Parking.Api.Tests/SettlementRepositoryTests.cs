@@ -17,8 +17,8 @@ public sealed class SettlementRepositoryTests
         await using MySqlConnection connection = new(ConnectionString);
         long parkingSessionId = await connection.ExecuteScalarAsync<long>("""
             INSERT INTO parking_session
-            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,status)
-            VALUES (1,@EventId,@CarNumber,1,1,10,UTC_TIMESTAMP(6),'Paid');
+            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,outflag)
+            VALUES (1,@EventId,@CarNumber,1,1,10,UTC_TIMESTAMP(6),'X');
             SELECT LAST_INSERT_ID();
             """, new
         {

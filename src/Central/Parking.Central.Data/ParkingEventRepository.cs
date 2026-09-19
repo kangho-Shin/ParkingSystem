@@ -70,13 +70,13 @@ public sealed class ParkingEventRepository : IParkingEventRepository
             const string insertSessionSql = """
                 INSERT INTO parking_session
                 (sitenum, ineventid, carnum, groupnum, cartype, inlaneid,
-                 indate, status)
+                 indeviceid, indate, outflag)
                 VALUES
                 (@SiteId, @EventId, @CarNumber,
                  COALESCE((SELECT groupnum FROM parking_lane
                            WHERE sitenum=@SiteId AND laneid=@LaneId), 1),
                  1, @LaneId,
-                 @OccurredAtUtc, 'Entered');
+                 @DeviceId, @OccurredAtUtc, 'I');
 
                 SELECT LAST_INSERT_ID();
                 """;
@@ -90,6 +90,7 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                         EventId = eventId,
                         request.CarNumber,
                         request.LaneId,
+                        request.DeviceId,
                         OccurredAtUtc = request.OccurredAt.UtcDateTime
                     },
                     transaction,

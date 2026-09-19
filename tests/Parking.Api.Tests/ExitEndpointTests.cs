@@ -52,8 +52,8 @@ public sealed class ExitEndpointTests
         await using MySqlConnection connection = new(ConnectionString);
         long parkingSessionId = await connection.ExecuteScalarAsync<long>("""
             INSERT INTO parking_session
-            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,paydate,status)
-            VALUES (1,@EventId,@CarNumber,1,1,10,@EntryAt,@Paydate,'Paid');
+            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,paydate,outflag)
+            VALUES (1,@EventId,@CarNumber,1,1,10,@EntryAt,@Paydate,'X');
             SELECT LAST_INSERT_ID();
             """, new
         {
