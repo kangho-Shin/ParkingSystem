@@ -76,12 +76,30 @@ public sealed class ParkingExitRepositoryTests
 
         FieldEventResponse result = await repository.SaveExitAsync(
             CreateRequest(carNumber),
-            false,
+            true,
             CancellationToken.None);
 
         Assert.True(result.Accepted);
         Assert.True(result.OpenBarrier);
         Assert.Equal("Exited", await GetSessionStatusAsync(parkingSessionId));
+    }
+
+    [Fact]
+    public async Task 결제상태라도_추가요금이_있으면_출차를_거부한다()
+    {
+        string carNumber = $"TEST{Guid.NewGuid():N}"[..20];
+        long parkingSessionId = await CreateSessionAsync(carNumber, "Paid");
+        ParkingExitRepository repository = new(ConnectionString);
+
+        FieldEventResponse result = await repository.SaveExitAsync(
+            CreateRequest(carNumber),
+            false,
+            CancellationToken.None);
+
+        Assert.False(result.Accepted);
+        Assert.False(result.OpenBarrier);
+        Assert.Equal("PAYMENT_REQUIRED", result.ResultCode);
+        Assert.Equal("Paid", await GetSessionStatusAsync(parkingSessionId));
     }
 
     private static ExitEventRequest CreateRequest(string carNumber) => new(

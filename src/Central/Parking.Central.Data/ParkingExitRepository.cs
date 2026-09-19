@@ -67,7 +67,7 @@ public sealed class ParkingExitRepository : IParkingExitRepository
 
     public async Task<FieldEventResponse> SaveExitAsync(
         ExitEventRequest request,
-        bool isFreeExit,
+        bool exitAllowed,
         CancellationToken cancellationToken)
     {
         await using MySqlConnection connection = new(_connectionString);
@@ -110,7 +110,7 @@ public sealed class ParkingExitRepository : IParkingExitRepository
             {
                 result = new FieldEventResponse(request.EventId, false, null, "OPEN_SESSION_NOT_FOUND", "미출차 차량이 없습니다.", false);
             }
-            else if (session.Status != "Paid" && !isFreeExit)
+            else if (!exitAllowed)
             {
                 result = new FieldEventResponse(
                     request.EventId,
