@@ -14,17 +14,20 @@ namespace Parking.Api.Features.Exits
         private readonly FeeCalculationService _feeService;
         private readonly ISettlementRepository _settlementRepository;
         private readonly IParkingLaneDirectionValidator _laneValidator;
+        private readonly IPeriodVehicleRepository _periodRepository;
 
         public ExitController(
             IParkingExitRepository repository,
             FeeCalculationService feeService,
             ISettlementRepository settlementRepository,
-            IParkingLaneDirectionValidator laneValidator)
+            IParkingLaneDirectionValidator laneValidator,
+            IPeriodVehicleRepository periodRepository)
         {
             _repository = repository;
             _feeService = feeService;
             _settlementRepository = settlementRepository;
             _laneValidator = laneValidator;
+            _periodRepository = periodRepository;
         }
 
         [HttpGet("open")]
@@ -70,6 +73,21 @@ namespace Parking.Api.Features.Exits
                     ResultCode = "INVALID_LANE_DIRECTION",
                     Message = "출차 차로·장비·방향 설정이 일치하지 않습니다."
                 });
+
+            OpenPeriodSession? periodSession = await _periodRepository.FindOpenAsync(
+                request.SiteId,
+                request.Groupnum,
+                request.CarNumber,
+                cancellationToken);
+            if (periodSession is not null)
+            {
+                if (request.OutDateTime < periodSession.InDateTime)
+                    return BadRequest();
+                return Ok(await _periodRepository.SaveExitAsync(
+                    request,
+                    periodSession,
+                    cancellationToken));
+            }
 
             bool exitAllowed = false;
             OpenParkingSessionResponse? session = await _repository.FindOpenAsync(
