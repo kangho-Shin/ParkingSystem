@@ -106,6 +106,16 @@ namespace Parking.EdgeService
                 new OutboxMessage(Guid.Parse(x.EventId), x.EventType, x.PayloadJson, checked((int)x.RetryCount))).ToList();
         }
 
+        public async Task<int> CountPendingAsync(CancellationToken cancellationToken)
+        {
+            await using SqliteConnection connection = new(_connectionString);
+            long count = await connection.QuerySingleAsync<long>(
+                new CommandDefinition(
+                    "SELECT COUNT(*) FROM outbox_message WHERE state=0;",
+                    cancellationToken: cancellationToken));
+            return checked((int)count);
+        }
+
         public Task MarkCompletedAsync(Guid eventId, CancellationToken cancellationToken) =>
             ExecuteAsync(
                 "UPDATE outbox_message SET state=1,completed_at_utc=@Now WHERE event_id=@EventId;",
