@@ -64,24 +64,22 @@ public class ContractTests
     }
 
     [Fact]
-    public void 입출차요청은_그룹_방향_이미지를_보관한다()
+    public void 입출차요청은_그룹_방향_InImage_OutImage를_보관한다()
     {
-        VehicleImage image = new(
-            "001_002_010_Entry_test.jpg",
-            @"C:\ParkingSystem\Images\001_002_010_Entry_test.jpg",
-            DateTimeOffset.UtcNow);
+        const string inImage = @"C:\ParkingSystem\Images\001_002_010_Entry_test.jpg";
+        const string outImage = @"C:\ParkingSystem\Images\001_002_020_Exit_test.jpg";
 
         FieldEventRequest entry = new(
             Guid.NewGuid(), 1, 10, 101, "12가3456", DateTimeOffset.UtcNow,
-            2, ParkingEventType.Entry, image);
+            2, ParkingEventType.Entry, inImage);
         ExitEventRequest exit = new(
             Guid.NewGuid(), 1, 20, 201, "12가3456", DateTimeOffset.UtcNow,
-            2, 1, null, ParkingEventType.Exit, image);
+            2, 1, null, ParkingEventType.Exit, outImage);
 
         Assert.Equal(2, entry.Groupnum);
         Assert.Equal(ParkingEventType.Entry, entry.EventType);
-        Assert.Same(image, entry.Image);
+        Assert.Equal(inImage, entry.InImage);
         Assert.Equal(ParkingEventType.Exit, exit.EventType);
-        Assert.Same(image, exit.Image);
+        Assert.Equal(outImage, exit.OutImage);
     }
 }
