@@ -101,8 +101,12 @@ public class CreateEntryEndpointTests
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.ConfigureServices(services =>
+            {
                 services.AddSingleton<IParkingEventRepository>(
-                    new FakeParkingEventRepository()));
+                    new FakeParkingEventRepository());
+                services.AddSingleton<IParkingLaneDirectionValidator>(
+                    new AllowLaneDirectionValidator());
+            });
         }
     }
 
@@ -122,5 +126,13 @@ public class CreateEntryEndpointTests
 
             return Task.FromResult(response);
         }
+    }
+
+    private sealed class AllowLaneDirectionValidator : IParkingLaneDirectionValidator
+    {
+        public Task<bool> IsValidAsync(
+            long siteId, int groupnum, long laneId, long deviceId,
+            string eventType, CancellationToken cancellationToken) =>
+            Task.FromResult(true);
     }
 }
