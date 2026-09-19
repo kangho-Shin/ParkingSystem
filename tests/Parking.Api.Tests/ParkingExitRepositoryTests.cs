@@ -102,6 +102,34 @@ public sealed class ParkingExitRepositoryTests
         Assert.Equal("X", await GetSessionOutFlagAsync(parkingSessionId));
     }
 
+    [Fact]
+    public async Task 출차시_그룹_장비_OutImage를_저장한다()
+    {
+        string carNumber = $"TEST{Guid.NewGuid():N}"[..20];
+        long parkingSessionId = await CreateSessionAsync(carNumber, "X", 2);
+        const string outImage = @"C:\ParkingSystem\Images\001_002_020_Exit_test.jpg";
+        ExitEventRequest request = new(
+            Guid.NewGuid(), 1, 20, 201, carNumber, DateTimeOffset.UtcNow,
+            2, 1, null, ParkingEventType.Exit, outImage);
+        ParkingExitRepository repository = new(ConnectionString);
+
+        await repository.SaveExitAsync(request, true, CancellationToken.None);
+
+        await using MySqlConnection connection = new(ConnectionString);
+        ExitStorageRow stored = await connection.QuerySingleAsync<ExitStorageRow>("""
+            SELECT s.outdeviceid OutDeviceId, s.outimage OutImage,
+                   e.groupnum Groupnum, e.imagepath EventImage
+            FROM parking_session s
+            JOIN parking_event e ON e.eventid=s.outeventid
+            WHERE s.xindex=@ParkingSessionId;
+            """, new { ParkingSessionId = parkingSessionId });
+
+        Assert.Equal(2, stored.Groupnum);
+        Assert.Equal(201, stored.OutDeviceId);
+        Assert.Equal(outImage, stored.OutImage);
+        Assert.Equal(outImage, stored.EventImage);
+    }
+
     private static ExitEventRequest CreateRequest(string carNumber) => new(
         Guid.NewGuid(),
         1,
@@ -109,6 +137,14 @@ public sealed class ParkingExitRepositoryTests
         201,
         carNumber,
         DateTimeOffset.UtcNow);
+
+    private sealed class ExitStorageRow
+    {
+        public int Groupnum { get; set; }
+        public long OutDeviceId { get; set; }
+        public string? OutImage { get; set; }
+        public string? EventImage { get; set; }
+    }
 
     private static async Task<long> CreateSessionAsync(
         string carNumber,
