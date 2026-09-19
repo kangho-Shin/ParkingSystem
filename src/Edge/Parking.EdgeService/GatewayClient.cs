@@ -35,6 +35,17 @@ namespace Parking.EdgeService
             CancellationToken cancellationToken) =>
             PostRawAsync("api/v1/edge/payments/complete", json, cancellationToken);
 
+        public async Task<GatewayHealthResponse> GetHealthAsync(
+            CancellationToken cancellationToken)
+        {
+            using HttpResponseMessage response =
+                await _httpClient.GetAsync("health", cancellationToken);
+            response.EnsureSuccessStatusCode();
+            string json = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonConvert.DeserializeObject<GatewayHealthResponse>(json)
+                ?? throw new InvalidOperationException("Gateway 상태 응답이 없습니다.");
+        }
+
         public async Task<SiteConfiguration> GetSiteConfigurationAsync(
             long siteId, CancellationToken cancellationToken)
         {
