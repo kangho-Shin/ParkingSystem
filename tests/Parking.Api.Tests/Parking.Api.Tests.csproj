@@ -20,5 +20,7 @@
     <ProjectReference Include="..\..\src\Central\Parking.Central.Data\Parking.Central.Data.csproj" />
     <ProjectReference Include="..\..\src\BuildingBlocks\Parking.Contracts\Parking.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Central\Parking.Api\Parking.Api.csproj" />
+    <ProjectReference Include="..\..\src\Central\Parking.EdgeGateway\Parking.EdgeGateway.csproj" />
+    <ProjectReference Include="..\..\src\Edge\Parking.EdgeService\Parking.EdgeService.csproj" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json.Linq;
 using Parking.Contracts;
 
 namespace Parking.EdgeGateway
@@ -33,6 +34,33 @@ namespace Parking.EdgeGateway
             try { return Ok(await _client.GetSiteConfigurationAsync(siteId, cancellationToken)); }
             catch (HttpRequestException) { return StatusCode(StatusCodes.Status503ServiceUnavailable); }
             catch (TaskCanceledException) { return StatusCode(StatusCodes.Status503ServiceUnavailable); }
+        }
+
+        [HttpPost("fees/quote")]
+        public async Task<IActionResult> QuoteFeeAsync(
+            [FromBody] JToken request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                HttpRelayResponse response = await _client.RelayFeeQuoteAsync(
+                    request.ToString(Newtonsoft.Json.Formatting.None),
+                    cancellationToken);
+                return new ContentResult
+                {
+                    StatusCode = response.StatusCode,
+                    ContentType = "application/json; charset=utf-8",
+                    Content = response.Content
+                };
+            }
+            catch (HttpRequestException)
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable);
+            }
+            catch (TaskCanceledException)
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable);
+            }
         }
 
         private async Task<IActionResult> RelayAsync(Func<Task<FieldEventResponse>> action)

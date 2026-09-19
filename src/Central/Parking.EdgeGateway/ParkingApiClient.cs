@@ -15,6 +15,11 @@ namespace Parking.EdgeGateway
         public Task<FieldEventResponse> SendExitAsync(ExitEventRequest request, CancellationToken cancellationToken) =>
             PostAsync<ExitEventRequest, FieldEventResponse>("api/v1/parking/exits", request, cancellationToken);
 
+        public Task<HttpRelayResponse> RelayFeeQuoteAsync(
+            string json,
+            CancellationToken cancellationToken) =>
+            PostRawAsync("api/v1/fees/quote", json, cancellationToken);
+
         public async Task<SiteConfiguration> GetSiteConfigurationAsync(
             long siteId, CancellationToken cancellationToken)
         {
@@ -36,6 +41,17 @@ namespace Parking.EdgeGateway
             string responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
             return JsonConvert.DeserializeObject<TResponse>(responseJson)
                 ?? throw new InvalidOperationException("Parking.Api 응답이 없습니다.");
+        }
+
+        private async Task<HttpRelayResponse> PostRawAsync(
+            string uri,
+            string json,
+            CancellationToken cancellationToken)
+        {
+            using StringContent content = new(json, Encoding.UTF8, "application/json");
+            using HttpResponseMessage response = await _httpClient.PostAsync(uri, content, cancellationToken);
+            string responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+            return new HttpRelayResponse((int)response.StatusCode, responseJson);
         }
     }
 }

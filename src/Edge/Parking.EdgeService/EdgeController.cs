@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json.Linq;
 using Parking.Contracts;
 
 namespace Parking.EdgeService
@@ -10,15 +11,18 @@ namespace Parking.EdgeService
         private readonly EdgeEventService _service;
         private readonly LocalConfigurationStore _configurationStore;
         private readonly IConfiguration _configuration;
+        private readonly GatewayClient _gatewayClient;
 
         public EdgeController(
             EdgeEventService service,
             LocalConfigurationStore configurationStore,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            GatewayClient gatewayClient)
         {
             _service = service;
             _configurationStore = configurationStore;
             _configuration = configuration;
+            _gatewayClient = gatewayClient;
         }
 
         [HttpGet("local/config")]
@@ -38,5 +42,32 @@ namespace Parking.EdgeService
         public async Task<IActionResult> ExitAsync(
             [FromBody] ExitEventRequest request, CancellationToken cancellationToken) =>
             Ok(await _service.AcceptExitAsync(request, cancellationToken));
+
+        [HttpPost("local/fees/quote")]
+        public async Task<IActionResult> QuoteFeeAsync(
+            [FromBody] JToken request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                HttpRelayResponse response = await _gatewayClient.RelayFeeQuoteAsync(
+                    request.ToString(Newtonsoft.Json.Formatting.None),
+                    cancellationToken);
+                return new ContentResult
+                {
+                    StatusCode = response.StatusCode,
+                    ContentType = "application/json; charset=utf-8",
+                    Content = response.Content
+                };
+            }
+            catch (HttpRequestException)
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable);
+            }
+            catch (TaskCanceledException)
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable);
+            }
+        }
     }
 }
