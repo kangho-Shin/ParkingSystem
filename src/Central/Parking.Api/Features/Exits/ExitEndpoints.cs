@@ -44,7 +44,7 @@ namespace Parking.Api.Features.Exits
                 request.SiteId > int.MaxValue ||
                 request.LaneId <= 0 || request.DeviceId <= 0 ||
                 string.IsNullOrWhiteSpace(request.CarNumber) ||
-                request.OccurredAt == default)
+                request.OutDateTime == default)
                 return BadRequest();
 
             bool exitAllowed = false;
@@ -53,7 +53,7 @@ namespace Parking.Api.Features.Exits
                 request.CarNumber.Trim(),
                 cancellationToken);
 
-            if (session is not null && request.OccurredAt < session.EntryAt)
+            if (session is not null && request.OutDateTime < session.EntryAt)
                 return BadRequest();
 
             if (session is not null)
@@ -66,8 +66,8 @@ namespace Parking.Api.Features.Exits
                     {
                         Sitenum = checked((int)request.SiteId),
                         Groupnum = session.Groupnum,
-                        EntryAt = session.EntryAt.ToOffset(request.OccurredAt.Offset).DateTime,
-                        ExitAt = request.OccurredAt.DateTime,
+                        EntryAt = session.EntryAt.ToOffset(request.OutDateTime.Offset).DateTime,
+                        ExitAt = request.OutDateTime.DateTime,
                         CarType = session.CarType,
                         DiscountKeys = settlement.DiscountKeys.ToList()
                     },
@@ -77,7 +77,7 @@ namespace Parking.Api.Features.Exits
                     calculation.Fee.FinalFee,
                     settlement.PaidAmount,
                     settlement.LastPaydate,
-                    request.OccurredAt,
+                    request.OutDateTime,
                     calculation.PrepayGraceTime);
                 exitAllowed = settlementResult.PayableAmount == 0;
             }
