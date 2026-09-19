@@ -73,6 +73,20 @@ namespace Parking.EdgeService
             }
         }
 
+        [HttpGet("local/parking/search")]
+        public Task<IActionResult> SearchParkingAsync(CancellationToken cancellationToken) =>
+            RelayAsync(() => _gatewayClient.RelayParkingSearchAsync(
+                Request.QueryString.Value ?? "",
+                cancellationToken));
+
+        [HttpPost("local/fees/quote/session")]
+        public Task<IActionResult> QuoteSessionFeeAsync(
+            [FromBody] JToken request,
+            CancellationToken cancellationToken) =>
+            RelayAsync(() => _gatewayClient.RelaySessionFeeQuoteAsync(
+                request.ToString(Newtonsoft.Json.Formatting.None),
+                cancellationToken));
+
         [HttpPost("local/payments/complete")]
         public async Task<IActionResult> CompletePaymentAsync(
             [FromBody] JToken request,
