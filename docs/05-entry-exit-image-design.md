@@ -11,7 +11,7 @@
 - `Sitenum`, `Groupnum`, `LaneId`, `DeviceId`
 - 차량번호
 - 입차 `InDateTime` 또는 출차 `OutDateTime`
-- 입차 `InImage` 또는 출차 `OutImage` 경로
+- 입차 `InImage` 또는 출차 `OutImage` 파일명
 
 요청의 `EventType`과 `parking_lane.Direction`이 다르면 요청을 거부한다.
 
@@ -107,16 +107,12 @@ SSS_GGG_LLL_Exit_yyyyMMddHHmmssfff_차량번호_EventId.jpg
 - `Sitenum`, `Groupnum`, `LaneId`는 각각 3자리 고정으로 기록한다.
 - 예: 1→`001`, 2→`002`, 10→`010`.
 - 밀리초와 EventId를 포함하여 파일명 충돌을 막는다.
-- DB에는 이미지 바이너리가 아니라 경로와 전송상태를 저장한다.
-- 필요하면 파일 해시를 함께 저장하여 손상과 중복을 확인한다.
+- DB에는 이미지 바이너리나 전체 경로가 아니라 파일명만 저장한다.
 
 ## 7. 이미지 저장과 전송
 
-- 주차 사건을 먼저 저장하고 이미지 저장·전송은 별도 상태로 관리한다.
-- 이미지 실패 때문에 입차·출차 사건이 사라지면 안 된다.
-- 중앙 연결 실패 시 현장에 이미지를 보관하고 재전송한다.
-- 전송상태는 최소 `Pending`, `Completed`, `Failed`로 관리한다.
-- 중앙 보관 완료 후 현장 이미지 삭제시점은 보존정책으로 별도 결정한다.
+- 이미지 파일 전송과 웹 조회는 기존 구현을 재사용한다.
+- 이번 프로젝트는 이미지 파일을 전송하지 않고 `InImage`, `OutImage` 파일명만 DB에 저장한다.
 
 ## 8. 중복 처리
 
