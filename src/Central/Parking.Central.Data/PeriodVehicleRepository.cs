@@ -22,7 +22,7 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
         CancellationToken cancellationToken)
     {
         await using MySqlConnection connection = new(_connectionString);
-        return await connection.QueryFirstOrDefaultAsync<PeriodMember>(new CommandDefinition("""
+        PeriodMemberRow? row = await connection.QueryFirstOrDefaultAsync<PeriodMemberRow>(new CommandDefinition("""
             SELECT xindex MemberId, sitenum SiteId, @Groupnum Groupnum,
                    cardid CardId, COALESCE(name,'') Name,
                    CASE WHEN carnum1=@CarNumber THEN carnum1 ELSE carnum2 END CarNumber,
@@ -45,6 +45,15 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
                 CheckDate = at.Date
             },
             cancellationToken: cancellationToken));
+        return row is null ? null : new PeriodMember(
+            row.MemberId,
+            row.SiteId,
+            checked((int)row.Groupnum),
+            row.CardId,
+            row.Name,
+            row.CarNumber,
+            row.CarType,
+            row.EndDate);
     }
 
     public async Task<FieldEventResponse> SaveEntryAsync(
@@ -264,10 +273,22 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
         public long PeriodSessionId { get; set; }
         public long MemberId { get; set; }
         public long SiteId { get; set; }
-        public int Groupnum { get; set; }
+        public long Groupnum { get; set; }
         public string CarNumber { get; set; } = "";
         public DateTime InDateTime { get; set; }
         public string? InImage { get; set; }
         public string OutFlag { get; set; } = "";
+    }
+
+    private sealed class PeriodMemberRow
+    {
+        public long MemberId { get; set; }
+        public long SiteId { get; set; }
+        public int Groupnum { get; set; }
+        public long CardId { get; set; }
+        public string Name { get; set; } = "";
+        public string CarNumber { get; set; } = "";
+        public string CarType { get; set; } = "";
+        public DateTime? EndDate { get; set; }
     }
 }
