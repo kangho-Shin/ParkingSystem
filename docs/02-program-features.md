@@ -5,7 +5,7 @@
 중앙 업무 서버이며 모든 최종 주차 판단과 MySQL 저장을 담당한다.
 
 - 입차 요청 검증과 주차 세션 생성
-- 입차·출차 차량 이미지 경로와 방향정보 저장 예정
+- 입차·출차 차량 이미지 파일명과 방향정보 저장
 - 같은 `EventId` 재요청 시 최초 처리 결과 반환
 - 미출차 차량 조회
 - 요금 설정 로딩과 요금 계산
@@ -14,6 +14,8 @@
 - 출차 시 현재 요금을 다시 계산하여 미납·추가요금 여부 판단
 - 결제 완료 저장과 같은 `PaymentId` 중복 방지
 - 현장·차로·장비 설정 조회 및 저장
+- 등록차량 유효회원 판정과 `tperiodinout` 입·출차 처리
+- 등록차량 회원 조회·추가·수정·실제 삭제
 
 출차는 다음 경우에만 허용한다.
 
@@ -74,10 +76,12 @@ Dapper와 MySqlConnector를 사용하는 저장소 계층이다.
 - `PaymentRepository`: 결제 저장, 중복·충돌 검사, 세션 Paid 처리
 - `SettlementRepository`: 할인키와 누적 결제금액 조회
 - `SiteConfigurationRepository`: 현장·차로·장비 설정 저장과 조회
+- `PeriodVehicleRepository`: 등록차량 유효회원 판정과 입·출차 저장
+- `PeriodMemberManagementRepository`: `tperiodmember` 관리 조회·추가·수정·실제 삭제
 
 ## Parking.Simulator
 
-현재는 가상 입차 시험을 지원한다.
+현재는 가상 입·출차 시험을 지원한다.
 
 ```bat
 dotnet run --project src\Tools\Parking.Simulator\Parking.Simulator.csproj -- entry --site 1 --lane 10 --device 101 --car 12가3456
@@ -89,11 +93,11 @@ dotnet run --project src\Tools\Parking.Simulator\Parking.Simulator.csproj -- ent
 - `--event`: 지정한 UUID 재사용
 - `--repeat-event`: 같은 UUID를 즉시 두 번 전송하여 중복방지 시험
 
-향후 출차·결제·LPR·전광판·차단기 모의 기능을 추가한다.
+향후 결제·LPR·전광판·차단기 모의 기능을 추가한다.
 
 ## 출구·사전무인 차량조회
 
-출구무인과 사전무인은 전체 차량번호 또는 뒤 4자리로 일반차량과 등록차량의 미출차 내역을 함께 조회한다. 조회 결과가 한 대면 즉시 요금을 계산한다. 여러 대면 차량번호, 입차시간, 입차이미지를 표시하고 사용자가 선택한 `ParkingSessionId`로 다시 호출한다. 조회·계산만으로는 `outflag=I`를 유지하며 실제 결제완료 또는 최종요금 0원 확정 시 `X`로 변경한다. 이 기능은 설계가 확정됐으며 아직 구현 전이다.
+일반차량은 전체 차량번호 또는 뒤 4자리로 미출차 내역을 조회한다. 조회 결과가 한 대면 즉시 요금을 계산하고, 여러 대면 차량번호·입차시간·입차이미지를 표시한 뒤 선택한 `ParkingSessionId`로 다시 호출한다. 조회·계산만으로는 `outflag=I`를 유지하며 실제 결제완료 또는 최종요금 0원 확정 시 `X`로 변경한다. 일반차량 흐름은 구현 완료됐으며 등록차량을 같은 화면에 통합하는 작업은 아직 하지 않았다.
 
 ## 공통 라이브러리
 
