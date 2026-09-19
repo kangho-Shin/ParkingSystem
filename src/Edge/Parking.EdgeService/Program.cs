@@ -32,6 +32,7 @@ namespace Parking.EdgeService
             builder.Services.AddScoped<PaymentRelayService>();
             builder.Services.AddScoped<EdgeManagementService>();
             builder.Services.AddSingleton<LprFileNameParser>();
+            builder.Services.AddSingleton<IDisplayBoardOutput, DisplayBoardOutput>();
             builder.Services.AddScoped<LprLaneProcessor>();
             builder.Services.AddHostedService<OutboxWorker>();
             builder.Services.AddHostedService<ConfigurationSyncWorker>();
