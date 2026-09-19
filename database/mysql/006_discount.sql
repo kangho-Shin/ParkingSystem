@@ -36,6 +36,7 @@ CREATE TABLE parking_session_discount
 (
     parking_session_discount_id BIGINT NOT NULL AUTO_INCREMENT,
     parking_session_id BIGINT NOT NULL,
+    car_number VARCHAR(20) NOT NULL,
     eligibility_id BIGINT NULL,
     discount_key INT NOT NULL,
     discount_source VARCHAR(20) NOT NULL,
@@ -55,6 +56,7 @@ CREATE TABLE parking_session_discount
     UNIQUE KEY ux_parking_session_discount_source
         (parking_session_id, discount_source, source_reference),
     INDEX ix_parking_session_discount_session (parking_session_id, applied_at_utc),
+    INDEX ix_parking_session_discount_car (car_number, registered_at_utc),
     INDEX ix_parking_session_discount_eligibility (eligibility_id),
     CONSTRAINT fk_parking_session_discount_session
         FOREIGN KEY (parking_session_id)
