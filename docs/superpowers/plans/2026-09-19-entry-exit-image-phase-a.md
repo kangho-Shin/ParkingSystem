@@ -88,8 +88,8 @@ git commit -m "feat: store parking lifecycle with outflag"
 - Test: `tests/Parking.Domain.Tests/ContractTests.cs`
 
 **Interfaces:**
-- Produces: `ParkingEventType.Entry`, `ParkingEventType.Exit`, `VehicleImage`, `VehicleImageName.Create(...)`
-- Produces: 입차 요청의 `Groupnum`, `EventType`, `InImage`; 출차 요청의 `OutImage`
+- Produces: `ParkingEventType.Entry`, `ParkingEventType.Exit`, `VehicleImageName.Create(...)`
+- Produces: 입차 요청의 `InDateTime`, `Groupnum`, `EventType`, `InImage`; 출차 요청의 `OutDateTime`, `OutImage`
 
 - [ ] **Step 1: 파일명과 방향 계약 실패 테스트 작성**
 
@@ -103,7 +103,7 @@ Expected: FAIL because the image contract and formatter do not exist.
 
 - [ ] **Step 3: 최소 계약 구현**
 
-기존 생성자 호출을 유지하도록 새 필드는 레코드 끝에 기본값으로 추가한다. 입차는 `InImage`, 출차는 `OutImage` 문자열에 저장 경로를 보관한다. 파일명 숫자는 `D3`, 시각은 `yyyyMMddHHmmssfff`, EventId는 구분자 없는 전체 UUID를 사용한다.
+입차 요청은 `InDateTime`과 `InImage`, 출차 요청은 `OutDateTime`과 `OutImage`를 사용한다. 별도 촬영시간은 만들지 않는다. 파일명 숫자는 `D3`, 시각은 해당 입·출차시각의 `yyyyMMddHHmmssfff`, EventId는 구분자 없는 전체 UUID를 사용한다.
 
 - [ ] **Step 4: 계약 테스트 실행**
 
@@ -130,7 +130,7 @@ git commit -m "feat: define parking event image contracts"
 - Test: `tests/Parking.Api.Tests/ExitEndpointTests.cs`
 
 **Interfaces:**
-- Consumes: Task 2의 `EventType`, `Groupnum`, `VehicleImage`
+- Consumes: Task 2의 `EventType`, `Groupnum`, `InImage`, `OutImage`
 - Produces: MySQL 사건과 세션의 입·출차 이미지 저장
 
 - [ ] **Step 1: 방향 불일치와 이미지 저장 실패 테스트 작성**
