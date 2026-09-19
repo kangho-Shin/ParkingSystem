@@ -111,7 +111,8 @@ public sealed class ExitEndpointTests
             LaneId = 20,
             DeviceId = 201,
             CarNumber = carNumber,
-            OutDateTime = new DateTimeOffset(outDateTime, TimeSpan.Zero)
+            OutDateTime = new DateTimeOffset(outDateTime, TimeSpan.Zero),
+            EventType = ParkingEventType.Exit
         };
 
         HttpResponseMessage response = await client.PostAsync(
