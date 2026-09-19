@@ -11,7 +11,7 @@
 - `Sitenum`, `Groupnum`, `LaneId`, `DeviceId`
 - 차량번호
 - 발생시각
-- 차량 이미지 경로
+- 입차 `InImage` 또는 출차 `OutImage` 경로
 
 요청의 `EventType`과 `parking_lane.Direction`이 다르면 요청을 거부한다.
 
