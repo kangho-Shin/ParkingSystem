@@ -12,7 +12,9 @@
 - 현장 임시 DB: SQLite
 - DB 접근: Dapper
 - JSON: Newtonsoft.Json, PascalCase 유지
-- 전체 명령 `dotnet test ParkingSystem.sln` 성공 확인
+- 최신 빌드 성공 확인
+- 등록차량 입출차 저장소 및 회원관리 API 통합시험 성공
+- 등록차량 관리 추가 후 전체 명령 `dotnet test ParkingSystem.sln`은 아직 재실행 전
 
 ## 2. 주요 개발이력
 
@@ -53,6 +55,9 @@
 - 동일차량 10초 중복입차 재사용과 이전 I/X 상태 정리 구현
 - 입·출차 요청의 사이트·그룹·차로·장비·방향 설정 일치 검증
 - 등록차량 유효회원 조회와 `tperiodinout` 입차 생성·출차 업데이트
+- `000_full_schema.sql`에 일반·등록차량 포함 전체 MySQL 스키마 통합
+- 등록차량 회원 전체 필드 조회·추가·수정·실제 삭제 API 구현
+- `useflag`는 사용/사용중지 상태로 유지하고 삭제는 실제 `DELETE`로 처리
 
 ## 3. 실제 통합시험 완료 내용
 
@@ -85,26 +90,27 @@
 - 자동시험과 실제 로컬 통합시험
 - 일반차량 입·출차 이미지 및 `InDateTime`/`OutDateTime` 계약
 - 일반차량 전체번호·뒤 4자리 검색과 선택 정산 API
-- 등록차량 회원 조회·추가·수정·실제 삭제 관리 API 뼈대
+- 등록차량 회원 조회·추가·수정·실제 삭제 관리 API 및 통합시험
 
 ## 5. 아직 구현하지 않은 범위
 
 ### 등록차량 후속 구현
 
 - 기존 등록차량 관리 프로그램의 신규 API 연동
-- 등록차량 관리 API 통합시험
+- 기존 관리 프로그램 소스는 현재 저장소에 없으므로 소스 확보 후 진행
+- 일반차량 차량번호 검색 화면에 등록차량 후보를 통합할지는 무인정산기 연동 시 확정
 
 상세 내용은 [입출차 및 차량 이미지 설계](05-entry-exit-image-design.md)를 따른다.
 
 ### 다음 우선순위
 
-1. 등록차량 관리 API 통합시험
-2. 기존 등록차량 관리 프로그램 연동
-3. `Parking.EdgeManager` 최소 기능
-4. 실제 LPR 결과 입력 계약과 차로 처리기
-5. 가상 전광판·차단기 출력
-6. 기존 LPR 프로그램을 `Parking.LprHost` 구조로 개편
-7. 기존 무인정산기를 `Parking.Kiosk` 구조로 개편
+1. `dotnet test ParkingSystem.sln` 전체 회귀시험
+2. `Parking.EdgeManager` 최소 기능 설계 및 뼈대
+3. 실제 LPR 결과 입력 계약과 차로 처리기
+4. 가상 전광판·차단기 출력
+5. 기존 LPR 프로그램을 `Parking.LprHost` 구조로 개편
+6. 기존 무인정산기를 `Parking.Kiosk` 구조로 개편
+7. 기존 등록차량 관리 프로그램 소스 확보 후 신규 API 연동
 
 ### 후속 프로그램
 
@@ -140,6 +146,8 @@
 - 이미지 파일 전송과 웹 조회는 기존 프로그램을 재사용하며 DB에는 파일명만 저장한다.
 - 일반차량은 입차 행을 다른 테이블로 이동·삭제하지 않고 같은 `parking_session` 행에 출차정보를 업데이트한다.
 - 등록차량은 입차 시 `tperiodinout`을 생성하고 출차 시 같은 행을 업데이트한다.
+- 등록차량 `useflag`는 사용/사용중지이며 삭제 표시에 사용하지 않는다.
+- 등록차량 회원 삭제 API는 `tperiodmember` 행을 실제 삭제한다.
 - 요금조회와 요금계산만으로는 `outflag=I`를 유지한다.
 - 실제 결제완료 또는 최종요금 0원 확정 시에만 `outflag=X`로 변경한다.
 - 출차완료 시 `outflag=O`로 변경한다.
@@ -188,3 +196,5 @@ MySQL 저장소 시험만 실행할 때도 `PARKING_TEST_CONNECTION`이 필요�
 다음 문장과 이 문서를 함께 제공하면 된다.
 
 > ParkingSystem의 `codex/server-edge-foundation` 브랜치 작업을 계속 진행해줘. `docs/04-development-status.md`를 먼저 읽고, 완료된 작업을 반복하지 말고 아직 구현하지 않은 다음 우선순위부터 한 단계씩 진행해줘.
+
+현재 즉시 할 일은 `dotnet test ParkingSystem.sln` 전체 회귀시험이다. 성공하면 `Parking.EdgeManager` 최소 기능의 범위를 먼저 확정하고 구현한다.
