@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Dapper;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -34,6 +35,29 @@ public sealed class ParkingSearchEndpointTests
             await response.Content.ReadFromJsonAsync<ParkingSearchResponse>();
         Assert.NotNull(result);
         Assert.Equal([secondId, firstId], result.Candidates.Select(x => x.ParkingSessionId));
+    }
+
+    [Fact]
+    public async Task 전체번호_한건이면_즉시_요금견적을_반환한다()
+    {
+        await ClearTablesAsync();
+        DateTime now = DateTime.UtcNow;
+        long parkingSessionId = await CreateSessionAsync(
+            "56다7890",
+            now.AddHours(-1),
+            "IN-SINGLE.jpg");
+        await using TestApplication factory = new();
+        HttpClient client = factory.CreateClient();
+        string exitAt = Uri.EscapeDataString(new DateTimeOffset(now, TimeSpan.Zero).ToString("O"));
+
+        HttpResponseMessage response = await client.GetAsync(
+            $"/api/v1/parking/search?siteId=1&groupnum=1&carNumber=56다7890&exitAt={exitAt}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using JsonDocument result = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(parkingSessionId, result.RootElement.GetProperty("ParkingSessionId").GetInt64());
+        Assert.Equal("56다7890", result.RootElement.GetProperty("CarNumber").GetString());
+        Assert.True(result.RootElement.TryGetProperty("Fee", out _));
     }
 
     private static async Task ClearTablesAsync()
