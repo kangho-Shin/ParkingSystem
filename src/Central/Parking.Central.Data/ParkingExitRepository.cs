@@ -133,7 +133,7 @@ public sealed class ParkingExitRepository : IParkingExitRepository
                 EventId = eventId, request.SiteId, request.Groupnum,
                 request.LaneId, request.DeviceId, request.EventType,
                 request.CarNumber, OutDateTimeUtc = request.OutDateTime.UtcDateTime,
-                request.OutImage
+                OutImage = VehicleImageName.FileNameOnly(request.OutImage)
             }, transaction, cancellationToken: cancellationToken));
 
             if (inserted == 0)
@@ -181,7 +181,7 @@ public sealed class ParkingExitRepository : IParkingExitRepository
                         request.LaneId,
                         request.DeviceId,
                         OutDateTimeUtc = request.OutDateTime.UtcDateTime,
-                        request.OutImage,
+                        OutImage = VehicleImageName.FileNameOnly(request.OutImage),
                         session.ParkingSessionId
                     },
                     transaction, cancellationToken: cancellationToken));
