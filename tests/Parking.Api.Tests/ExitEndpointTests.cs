@@ -3,8 +3,10 @@ using System.Text;
 using Dapper;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using MySqlConnector;
 using Newtonsoft.Json;
+using Parking.Central.Data;
 using Parking.Contracts;
 
 namespace Parking.Api.Tests;
@@ -112,6 +114,7 @@ public sealed class ExitEndpointTests
             DeviceId = 201,
             CarNumber = carNumber,
             OutDateTime = new DateTimeOffset(outDateTime, TimeSpan.Zero),
+            Groupnum = 1,
             EventType = ParkingEventType.Exit
         };
 
@@ -133,6 +136,17 @@ public sealed class ExitEndpointTests
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseSetting("ConnectionStrings:ParkingDatabase", ConnectionString);
+            builder.ConfigureServices(services =>
+                services.AddSingleton<IParkingLaneDirectionValidator>(
+                    new AllowLaneDirectionValidator()));
         }
+    }
+
+    private sealed class AllowLaneDirectionValidator : IParkingLaneDirectionValidator
+    {
+        public Task<bool> IsValidAsync(
+            long siteId, int groupnum, long laneId, long deviceId,
+            string eventType, CancellationToken cancellationToken) =>
+            Task.FromResult(true);
     }
 }
