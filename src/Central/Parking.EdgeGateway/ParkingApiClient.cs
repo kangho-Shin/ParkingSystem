@@ -35,6 +35,13 @@ namespace Parking.EdgeGateway
             CancellationToken cancellationToken) =>
             PostRawAsync("api/v1/payments/complete", json, cancellationToken);
 
+        public async Task<bool> CheckHealthAsync(CancellationToken cancellationToken)
+        {
+            using HttpResponseMessage response =
+                await _httpClient.GetAsync("", cancellationToken);
+            return response.IsSuccessStatusCode;
+        }
+
         public async Task<SiteConfiguration> GetSiteConfigurationAsync(
             long siteId, CancellationToken cancellationToken)
         {
