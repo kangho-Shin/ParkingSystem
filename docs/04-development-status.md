@@ -62,6 +62,9 @@
 - Gateway·중앙 API 연결상태 분리 조회 구현
 - EdgeService 관리·설정·목록·LPR 이미지 조회 API 구현
 - Parking.EdgeManager WinForms 상태·목록·사진 모니터링 1차 구현
+- Parking.EdgeManager 포함 전체 회귀시험 성공
+- LPR STX/ETX·KS5601 TCP 수신과 ACK/NAK 응답 구현
+- LPR 파일명의 현장·그룹·장비·차로·방향 검증 및 기존 입출차 흐름 연결
 
 ## 3. 실제 통합시험 완료 내용
 
@@ -97,6 +100,7 @@
 - 등록차량 회원 조회·추가·수정·실제 삭제 관리 API 및 통합시험
 - Parking.EdgeManager 현재 입차 및 정산·출차 통합목록
 - Parking.EdgeManager 최신 사건 LPR 사진 자동표시와 목록 선택 조회
+- LPR TCP 다중접속 수신과 차로 처리기
 
 ## 5. 아직 구현하지 않은 범위
 
@@ -111,8 +115,8 @@
 ### 다음 우선순위
 
 1. `dotnet test ParkingSystem.sln` 전체 회귀시험
-2. 실제 LPR 결과 입력 계약과 차로 처리기
-3. 가상 전광판·차단기 출력
+2. 가상 전광판·차단기 출력
+3. 자체 전광판 TCP 프로토콜과 RS-232 차단기 제어 연동
 4. 기존 LPR 프로그램을 `Parking.LprHost` 구조로 개편
 5. 기존 무인정산기를 `Parking.Kiosk` 구조로 개편
 6. 기존 등록차량 관리 프로그램 소스 확보 후 신규 API 연동
@@ -202,4 +206,4 @@ MySQL 저장소 시험만 실행할 때도 `PARKING_TEST_CONNECTION`이 필요�
 
 > ParkingSystem의 `codex/server-edge-foundation` 브랜치 작업을 계속 진행해줘. `docs/04-development-status.md`를 먼저 읽고, 완료된 작업을 반복하지 말고 아직 구현하지 않은 다음 우선순위부터 한 단계씩 진행해줘.
 
-현재 즉시 할 일은 `Parking.EdgeManager`가 추가된 상태에서 `dotnet test ParkingSystem.sln` 전체 회귀시험을 한 번 실행하는 것이다. 성공하면 실제 LPR 결과 입력 계약과 차로 처리기를 진행한다.
+현재 즉시 할 일은 LPR TCP 차로 처리기가 추가된 상태에서 `dotnet test ParkingSystem.sln` 전체 회귀시험을 한 번 실행하는 것이다. 성공하면 가상 전광판·차단기 출력을 진행한다.
