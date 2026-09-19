@@ -63,6 +63,8 @@ Parking.Simulator / 향후 Kiosk·Operator·LprHost
 
 - `parking_event`: 입·출차 원본 사건과 처리 결과
 - `parking_session`: 입차부터 출차까지의 주차 건
+- `tperiodmember`: 등록차량 회원 원본
+- `tperiodinout`: 등록차량 입차부터 출차까지의 주차 건
 - `parking_site`, `parking_lane`, `parking_device`: 현장·차로·장비 설정
 - `tparkfee`, `tdiscount`, `tholiday`, `tparkvariable`: 요금 계산 설정
 - `payment`: 결제 결과
