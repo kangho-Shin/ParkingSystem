@@ -80,12 +80,12 @@ public sealed class ParkingExitRepository : IParkingExitRepository
             const string insertEvent = """
                 INSERT IGNORE INTO parking_event
                 (eventid,sitenum,laneid,deviceid,eventtype,carnum,eventat)
-                VALUES (@EventId,@SiteId,@LaneId,@DeviceId,'Exit',@CarNumber,@OccurredAtUtc);
+                VALUES (@EventId,@SiteId,@LaneId,@DeviceId,'Exit',@CarNumber,@OutDateTimeUtc);
                 """;
             int inserted = await connection.ExecuteAsync(new CommandDefinition(insertEvent, new
             {
                 EventId = eventId, request.SiteId, request.LaneId, request.DeviceId,
-                request.CarNumber, OccurredAtUtc = request.OccurredAt.UtcDateTime
+                request.CarNumber, OutDateTimeUtc = request.OutDateTime.UtcDateTime
             }, transaction, cancellationToken: cancellationToken));
 
             if (inserted == 0)
@@ -124,9 +124,9 @@ public sealed class ParkingExitRepository : IParkingExitRepository
             {
                 await connection.ExecuteAsync(new CommandDefinition("""
                     UPDATE parking_session SET outeventid=@EventId, outlaneid=@LaneId,
-                    outdeviceid=@DeviceId, outdate=@OccurredAtUtc, outflag='O'
+                    outdeviceid=@DeviceId, outdate=@OutDateTimeUtc, outflag='O'
                     WHERE xindex=@ParkingSessionId;
-                    """, new { EventId = eventId, request.LaneId, request.DeviceId, OccurredAtUtc = request.OccurredAt.UtcDateTime, session.ParkingSessionId },
+                    """, new { EventId = eventId, request.LaneId, request.DeviceId, OutDateTimeUtc = request.OutDateTime.UtcDateTime, session.ParkingSessionId },
                     transaction, cancellationToken: cancellationToken));
                 result = new FieldEventResponse(request.EventId, true, session.ParkingSessionId, "EXIT_ACCEPTED", "출차되었습니다.", true);
             }
