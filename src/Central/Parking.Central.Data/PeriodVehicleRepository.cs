@@ -273,7 +273,7 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
         public long PeriodSessionId { get; set; }
         public long MemberId { get; set; }
         public long SiteId { get; set; }
-        public long Groupnum { get; set; }
+        public int Groupnum { get; set; }
         public string CarNumber { get; set; } = "";
         public DateTime InDateTime { get; set; }
         public string? InImage { get; set; }
@@ -284,7 +284,7 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
     {
         public long MemberId { get; set; }
         public long SiteId { get; set; }
-        public int Groupnum { get; set; }
+        public long Groupnum { get; set; }
         public long CardId { get; set; }
         public string Name { get; set; } = "";
         public string CarNumber { get; set; } = "";
