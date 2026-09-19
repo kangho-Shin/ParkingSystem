@@ -65,6 +65,8 @@
 - Parking.EdgeManager 포함 전체 회귀시험 성공
 - LPR STX/ETX·KS5601 TCP 수신과 ACK/NAK 응답 구현
 - LPR 파일명의 현장·그룹·장비·차로·방향 검증 및 기존 입출차 흐름 연결
+- 전광판을 `DeviceType=LDM`, 차로, IP, TCP 포트로 등록하는 장비설정 확장
+- 기존 LDM 2줄 표시 및 차단기 열림 패킷을 EdgeService 출력으로 연결
 
 ## 3. 실제 통합시험 완료 내용
 
@@ -115,11 +117,10 @@
 ### 다음 우선순위
 
 1. `dotnet test ParkingSystem.sln` 전체 회귀시험
-2. 가상 전광판·차단기 출력
-3. 자체 전광판 TCP 프로토콜과 RS-232 차단기 제어 연동
-4. 기존 LPR 프로그램을 `Parking.LprHost` 구조로 개편
-5. 기존 무인정산기를 `Parking.Kiosk` 구조로 개편
-6. 기존 등록차량 관리 프로그램 소스 확보 후 신규 API 연동
+2. 실제 LDM 전광판 TCP 연결시험
+3. 기존 LPR 프로그램을 `Parking.LprHost` 구조로 개편
+4. 기존 무인정산기를 `Parking.Kiosk` 구조로 개편
+5. 기존 등록차량 관리 프로그램 소스 확보 후 신규 API 연동
 
 ### 후속 프로그램
 
@@ -206,4 +207,4 @@ MySQL 저장소 시험만 실행할 때도 `PARKING_TEST_CONNECTION`이 필요�
 
 > ParkingSystem의 `codex/server-edge-foundation` 브랜치 작업을 계속 진행해줘. `docs/04-development-status.md`를 먼저 읽고, 완료된 작업을 반복하지 말고 아직 구현하지 않은 다음 우선순위부터 한 단계씩 진행해줘.
 
-현재 즉시 할 일은 LPR TCP 차로 처리기가 추가된 상태에서 `dotnet test ParkingSystem.sln` 전체 회귀시험을 한 번 실행하는 것이다. 성공하면 가상 전광판·차단기 출력을 진행한다.
+현재 즉시 할 일은 전광판 장비 포트와 LDM TCP 출력이 추가된 상태에서 `database/mysql/008_device_port.sql`을 적용하고 `dotnet test ParkingSystem.sln` 전체 회귀시험을 실행하는 것이다.
