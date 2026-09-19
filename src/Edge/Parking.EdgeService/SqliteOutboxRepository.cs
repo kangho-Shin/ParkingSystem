@@ -100,8 +100,7 @@ namespace Parking.EdgeService
                 eventId, DateTimeOffset.UtcNow.AddSeconds(seconds), cancellationToken);
         }
 
-        private async Task ExecuteAsync(
-            string sql, Guid eventId, DateTimeOffset time, CancellationToken cancellationToken)
+        private async Task ExecuteAsync(string sql, Guid eventId, DateTimeOffset time, CancellationToken cancellationToken)
         {
             await using SqliteConnection connection = new(_connectionString);
             await connection.ExecuteAsync(new CommandDefinition(sql, new
