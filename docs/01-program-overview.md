@@ -32,12 +32,12 @@ Parking.Simulator / 향후 Kiosk·Operator·LprHost
 | `Parking.Api` | 중앙 Linux/Windows 시험환경 | 입차·출차·요금·결제·현장설정 업무 처리, MySQL 저장 | 구현 완료 |
 | `Parking.EdgeGateway` | 중앙 | 현장 요청을 Parking.Api로 전달 | 구현 완료 |
 | `Parking.EdgeService` | 현장 Windows | 현장 API, SQLite Outbox, 장애 제한운영, 설정 동기화 | 구현 완료 |
-| `Parking.Simulator` | 개발 PC | 가상 입차 및 중복·통신장애 시험 | 입차 기능 완료 |
+| `Parking.Simulator` | 개발 PC | 가상 입·출차 및 중복·통신장애 시험 | 입·출차 기능 완료 |
 | `Parking.FeeEngine` | 공통 라이브러리 | 요금표·할인·유예시간 계산 | 1차 구현 완료 |
 | `Parking.Central.Data` | 중앙 공통 라이브러리 | MySQL 저장소 구현 | 구현 완료 |
 | `Parking.Contracts` | 중앙·현장 공통 | API 요청·응답 계약 | 구현 완료 |
 | `Parking.Domain` | 공통 | 주차 상태 등 도메인 형식 | 기본 구현 완료 |
-| `Parking.Api.Tests` | 개발·CI | API·DB·중계·Outbox 통합시험 | 구현 및 전체 통과 |
+| `Parking.Api.Tests` | 개발·CI | API·DB·중계·Outbox 통합시험 | 등록차량 관리까지 개별 통과, 최신 전체시험 대기 |
 | `Parking.Domain.Tests` | 개발·CI | 공통 계약 시험 | 구현 및 전체 통과 |
 
 ## 3. 설계만 완료되고 아직 만들지 않은 프로그램
