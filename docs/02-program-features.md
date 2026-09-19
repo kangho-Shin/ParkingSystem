@@ -5,6 +5,7 @@
 중앙 업무 서버이며 모든 최종 주차 판단과 MySQL 저장을 담당한다.
 
 - 입차 요청 검증과 주차 세션 생성
+- 입차·출차 차량 이미지 경로와 방향정보 저장 예정
 - 같은 `EventId` 재요청 시 최초 처리 결과 반환
 - 미출차 차량 조회
 - 요금 설정 로딩과 요금 계산
@@ -90,8 +91,11 @@ dotnet run --project src\Tools\Parking.Simulator\Parking.Simulator.csproj -- ent
 
 향후 출차·결제·LPR·전광판·차단기 모의 기능을 추가한다.
 
+## 출구·사전무인 차량조회
+
+출구무인과 사전무인은 차량번호 뒤 4자리로 일반차량과 등록차량의 미출차 내역을 함께 조회한다. 여러 건이면 차량번호, 입차시간, 입차이미지를 표시하고 사용자가 선택한다. 이 기능은 설계가 확정됐으며 아직 구현 전이다.
+
 ## 공통 라이브러리
 
 - `Parking.Contracts`: 입차, 출차, 결제, 설정, 공통 응답 모델
 - `Parking.Domain`: `Entered`, `Paid`, `Exited`, `Unpaid`, `ManualExit` 상태
-

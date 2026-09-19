@@ -11,6 +11,6 @@
 2. [프로그램별 기능 상세](02-program-features.md)
 3. [API 규격](03-api-specification.md)
 4. [개발이력 및 현재 상태](04-development-status.md)
+5. [입출차 및 차량 이미지 설계](05-entry-exit-image-design.md)
 
 새 채팅에서 개발을 계속할 때는 우선 [개발이력 및 현재 상태](04-development-status.md)를 제공하면 된다.
-

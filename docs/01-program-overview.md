@@ -74,3 +74,4 @@ Parking.Simulator / 향후 Kiosk·Operator·LprHost
 - `outbox_message`: 입차·출차·결제 중앙 전송 대기열
 - 현장 설정 캐시: `LocalConfigurationStore`가 현장·차로·장비 설정 저장
 
+일반차량은 `parking_session` 한 행에 입차와 출차 정보를 함께 보관하며 입차정보를 삭제하지 않는다. 등록차량은 `tperiodmember`를 기준으로 판정하고 `tperiodinout` 한 행에 입·출차 정보를 보관한다. 상세 설계는 [입출차 및 차량 이미지 설계](05-entry-exit-image-design.md)를 따른다.
