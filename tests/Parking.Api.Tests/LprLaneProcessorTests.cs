@@ -60,6 +60,23 @@ public sealed class LprLaneProcessorTests
         Assert.False(result.ParkingResponse!.OpenBarrier);
     }
 
+    [Fact]
+    public async Task 정상처리결과는_같은차로_전광판으로_출력한다()
+    {
+        Guid eventId = Guid.NewGuid();
+        FieldEventResponse response = new(eventId, true, 77, "OK", "입차되었습니다.", true);
+        RecordingDisplayOutput output = new();
+        await using TestContext context = await TestContext.CreateAsync(
+            "Entry", HttpStatusCode.OK, JsonConvert.SerializeObject(response), output);
+        string fileName = $"001_002_101_010_Entry_20260919153025123_12가3456_{eventId:N}.jpg";
+
+        await context.Processor.ProcessAsync(fileName, CancellationToken.None);
+
+        Assert.Equal(10, output.Recognition!.LaneId);
+        Assert.Equal("12가3456", output.Recognition.CarNumber);
+        Assert.True(output.Response!.OpenBarrier);
+    }
+
     private sealed class TestContext : IAsyncDisposable
     {
         private TestContext(
@@ -79,7 +96,8 @@ public sealed class LprLaneProcessorTests
         public static async Task<TestContext> CreateAsync(
             string laneDirection,
             HttpStatusCode status,
-            string responseJson)
+            string responseJson,
+            IDisplayBoardOutput? displayOutput = null)
         {
             string path = System.IO.Path.Combine(
                 System.IO.Path.GetTempPath(), $"parking-lpr-{Guid.NewGuid():N}.db");
@@ -106,7 +124,8 @@ public sealed class LprLaneProcessorTests
                 new LprFileNameParser(),
                 store,
                 eventService,
-                NullLogger<LprLaneProcessor>.Instance);
+                NullLogger<LprLaneProcessor>.Instance,
+                displayOutput);
             return new TestContext(path, processor, outbox);
         }
 
@@ -114,6 +133,22 @@ public sealed class LprLaneProcessorTests
         {
             if (File.Exists(Path)) File.Delete(Path);
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingDisplayOutput : IDisplayBoardOutput
+    {
+        public LprRecognition? Recognition { get; private set; }
+        public FieldEventResponse? Response { get; private set; }
+
+        public Task SendAsync(
+            LprRecognition recognition,
+            FieldEventResponse response,
+            CancellationToken cancellationToken)
+        {
+            Recognition = recognition;
+            Response = response;
+            return Task.CompletedTask;
         }
     }
 
