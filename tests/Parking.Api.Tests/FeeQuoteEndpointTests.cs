@@ -91,6 +91,52 @@ public sealed class FeeQuoteEndpointTests
         Assert.True(result.IsPrepayGrace);
     }
 
+    [Fact]
+    public async Task 선택세션_0원견적은_정산완료_X로_변경한다()
+    {
+        DateTime exitAt = DateTime.UtcNow;
+        long parkingSessionId;
+        await using (MySqlConnection connection = new(ConnectionString))
+        {
+            parkingSessionId = await connection.ExecuteScalarAsync<long>("""
+                INSERT INTO parking_session
+                (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,outflag)
+                VALUES (1,@EventId,@CarNumber,99,1,10,@EntryAt,'I');
+                SELECT LAST_INSERT_ID();
+                """, new
+            {
+                EventId = Guid.NewGuid().ToByteArray(),
+                CarNumber = $"FREE{Guid.NewGuid():N}"[..20],
+                EntryAt = exitAt.AddMinutes(-10)
+            });
+        }
+
+        await using TestApplication factory = new();
+        HttpClient client = factory.CreateClient();
+        HttpResponseMessage response = await client.PostAsync(
+            "/api/v1/fees/quote/session",
+            new StringContent(
+                JsonConvert.SerializeObject(new
+                {
+                    ParkingSessionId = parkingSessionId,
+                    ExitAt = new DateTimeOffset(exitAt, TimeSpan.Zero)
+                }),
+                Encoding.UTF8,
+                "application/json"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        QuoteParkingFeeResponse? result = JsonConvert.DeserializeObject<QuoteParkingFeeResponse>(
+            await response.Content.ReadAsStringAsync());
+        Assert.NotNull(result);
+        Assert.Equal(parkingSessionId, result.ParkingSessionId);
+        Assert.Equal(0, result.PayableAmount);
+
+        await using MySqlConnection verifyConnection = new(ConnectionString);
+        Assert.Equal("X", await verifyConnection.ExecuteScalarAsync<string>(
+            "SELECT outflag FROM parking_session WHERE xindex=@ParkingSessionId;",
+            new { ParkingSessionId = parkingSessionId }));
+    }
+
     private sealed class TestApplication : WebApplicationFactory<global::Parking.Api.Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
