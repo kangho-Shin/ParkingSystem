@@ -2,7 +2,9 @@ using System.Text.Json;
 using Parking.Contracts;
 using Parking.Simulator;
 
-if (args.Length == 0 || !string.Equals(args[0], "entry", StringComparison.OrdinalIgnoreCase))
+if (args.Length == 0 ||
+    (!string.Equals(args[0], "entry", StringComparison.OrdinalIgnoreCase) &&
+     !string.Equals(args[0], "exit", StringComparison.OrdinalIgnoreCase)))
 {
     PrintUsage();
     return 1;
@@ -17,6 +19,10 @@ if (!TryGetLong(args, "--site", out long siteId) ||
     return 1;
 }
 
+int groupnum = TryGetLong(args, "--group", out long configuredGroupnum)
+    ? checked((int)configuredGroupnum)
+    : 1;
+
 string baseUrl = TryGetValue(args, "--url", out string configuredUrl)
     ? configuredUrl
     : "http://localhost:5200/";
@@ -26,18 +32,28 @@ Guid eventId = TryGetValue(args, "--event", out string eventText) &&
     : Guid.NewGuid();
 
 using HttpClient httpClient = new() { BaseAddress = new Uri(baseUrl) };
-EntrySimulator simulator = new(httpClient);
 
 try
 {
-    FieldEventResponse result = await simulator.SendAsync(
-        eventId, siteId, laneId, deviceId, carNumber, CancellationToken.None);
+    bool isEntry = string.Equals(args[0], "entry", StringComparison.OrdinalIgnoreCase);
+    FieldEventResponse result = isEntry
+        ? await new EntrySimulator(httpClient).SendAsync(
+            eventId, siteId, laneId, deviceId, carNumber,
+            CancellationToken.None, groupnum)
+        : await new ExitSimulator(httpClient).SendAsync(
+            eventId, siteId, groupnum, laneId, deviceId, carNumber,
+            CancellationToken.None);
     Console.WriteLine(JsonSerializer.Serialize(result));
 
     if (args.Contains("--repeat-event", StringComparer.OrdinalIgnoreCase))
     {
-        FieldEventResponse repeated = await simulator.SendAsync(
-            eventId, siteId, laneId, deviceId, carNumber, CancellationToken.None);
+        FieldEventResponse repeated = isEntry
+            ? await new EntrySimulator(httpClient).SendAsync(
+                eventId, siteId, laneId, deviceId, carNumber,
+                CancellationToken.None, groupnum)
+            : await new ExitSimulator(httpClient).SendAsync(
+                eventId, siteId, groupnum, laneId, deviceId, carNumber,
+                CancellationToken.None);
         Console.WriteLine(JsonSerializer.Serialize(repeated));
     }
 
@@ -71,4 +87,4 @@ static bool TryGetValue(string[] values, string name, out string value)
 }
 
 static void PrintUsage() => Console.WriteLine(
-    "사용법: parking-simulator entry --site 1 --lane 10 --device 101 --car 12가3456 [--url http://localhost:5200] [--event UUID] [--repeat-event]");
+    "사용법: parking-simulator entry|exit --site 1 --group 1 --lane 10 --device 101 --car 12가3456 [--url http://localhost:5200] [--event UUID] [--repeat-event]");
