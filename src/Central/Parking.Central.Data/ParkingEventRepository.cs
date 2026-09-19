@@ -28,11 +28,11 @@ public sealed class ParkingEventRepository : IParkingEventRepository
 
             const string insertEventSql = """
                 INSERT IGNORE INTO parking_event
-                (eventid, sitenum, laneid, deviceid, eventtype,
-                 carnum, eventat)
+                (eventid, sitenum, groupnum, laneid, deviceid, eventtype,
+                 carnum, eventat, imagepath)
                 VALUES
-                (@EventId, @SiteId, @LaneId, @DeviceId, 'Entry',
-                 @CarNumber, @InDateTimeUtc);
+                (@EventId, @SiteId, @Groupnum, @LaneId, @DeviceId, @EventType,
+                 @CarNumber, @InDateTimeUtc, @InImage);
                 """;
 
             int inserted = await connection.ExecuteAsync(
@@ -42,10 +42,13 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                     {
                         EventId = eventId,
                         request.SiteId,
+                        request.Groupnum,
                         request.LaneId,
                         request.DeviceId,
+                        request.EventType,
                         request.CarNumber,
-                        InDateTimeUtc = request.InDateTime.UtcDateTime
+                        InDateTimeUtc = request.InDateTime.UtcDateTime,
+                        request.InImage
                     },
                     transaction,
                     cancellationToken: cancellationToken));
@@ -70,13 +73,10 @@ public sealed class ParkingEventRepository : IParkingEventRepository
             const string insertSessionSql = """
                 INSERT INTO parking_session
                 (sitenum, ineventid, carnum, groupnum, cartype, inlaneid,
-                 indeviceid, indate, outflag)
+                 indeviceid, indate, inimage, outflag)
                 VALUES
-                (@SiteId, @EventId, @CarNumber,
-                 COALESCE((SELECT groupnum FROM parking_lane
-                           WHERE sitenum=@SiteId AND laneid=@LaneId), 1),
-                 1, @LaneId,
-                 @DeviceId, @InDateTimeUtc, 'I');
+                (@SiteId, @EventId, @CarNumber, @Groupnum, 1, @LaneId,
+                 @DeviceId, @InDateTimeUtc, @InImage, 'I');
 
                 SELECT LAST_INSERT_ID();
                 """;
@@ -89,9 +89,11 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                         request.SiteId,
                         EventId = eventId,
                         request.CarNumber,
+                        request.Groupnum,
                         request.LaneId,
                         request.DeviceId,
-                        InDateTimeUtc = request.InDateTime.UtcDateTime
+                        InDateTimeUtc = request.InDateTime.UtcDateTime,
+                        request.InImage
                     },
                     transaction,
                     cancellationToken: cancellationToken));
