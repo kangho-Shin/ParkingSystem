@@ -9,10 +9,14 @@ namespace Parking.Api.Features.Period;
 public sealed class PeriodVehicleController : ControllerBase
 {
     private readonly IPeriodVehicleRepository _repository;
+    private readonly IPeriodMemberManagementRepository _memberRepository;
 
-    public PeriodVehicleController(IPeriodVehicleRepository repository)
+    public PeriodVehicleController(
+        IPeriodVehicleRepository repository,
+        IPeriodMemberManagementRepository memberRepository)
     {
         _repository = repository;
+        _memberRepository = memberRepository;
     }
 
     [HttpGet("members/search")]
@@ -52,4 +56,76 @@ public sealed class PeriodVehicleController : ControllerBase
             cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
+
+    [HttpGet("members")]
+    public async Task<IActionResult> SearchMembersAsync(
+        [FromQuery] long siteId,
+        [FromQuery] int? groupnum,
+        [FromQuery] string? carNumber,
+        CancellationToken cancellationToken)
+    {
+        if (siteId <= 0 || groupnum <= 0)
+            return BadRequest();
+
+        IReadOnlyList<PeriodMemberDetail> result = await _memberRepository.SearchAsync(
+            siteId, groupnum, carNumber, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpGet("members/{memberId:long}")]
+    public async Task<IActionResult> GetMemberAsync(
+        long memberId,
+        CancellationToken cancellationToken)
+    {
+        if (memberId <= 0)
+            return BadRequest();
+
+        PeriodMemberDetail? result = await _memberRepository.GetAsync(memberId, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpPost("members")]
+    public async Task<IActionResult> CreateMemberAsync(
+        [FromBody] PeriodMemberSaveRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!IsValid(request))
+            return BadRequest();
+
+        long memberId = await _memberRepository.CreateAsync(request, cancellationToken);
+        PeriodMemberDetail? result = await _memberRepository.GetAsync(memberId, cancellationToken);
+        return CreatedAtAction(nameof(GetMemberAsync), new { memberId }, result);
+    }
+
+    [HttpPut("members/{memberId:long}")]
+    public async Task<IActionResult> UpdateMemberAsync(
+        long memberId,
+        [FromBody] PeriodMemberSaveRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (memberId <= 0 || !IsValid(request))
+            return BadRequest();
+
+        bool updated = await _memberRepository.UpdateAsync(memberId, request, cancellationToken);
+        return updated ? NoContent() : NotFound();
+    }
+
+    [HttpDelete("members/{memberId:long}")]
+    public async Task<IActionResult> DeleteMemberAsync(
+        long memberId,
+        CancellationToken cancellationToken)
+    {
+        if (memberId <= 0)
+            return BadRequest();
+
+        bool deleted = await _memberRepository.DeleteAsync(memberId, cancellationToken);
+        return deleted ? NoContent() : NotFound();
+    }
+
+    private static bool IsValid(PeriodMemberSaveRequest request) =>
+        request.SiteId > 0 &&
+        request.Groupnum > 0 &&
+        !string.IsNullOrWhiteSpace(request.CarNumber1) &&
+        (request.StartDate is null || request.EndDate is null || request.StartDate <= request.EndDate) &&
+        request.OutFlag is "I" or "X" or "O";
 }
