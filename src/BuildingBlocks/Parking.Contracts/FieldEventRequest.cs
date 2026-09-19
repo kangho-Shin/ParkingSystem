@@ -6,4 +6,7 @@ public sealed record FieldEventRequest(
     long LaneId,
     long DeviceId,
     string CarNumber,
-    DateTimeOffset OccurredAt);
+    DateTimeOffset InDateTime,
+    int Groupnum = 1,
+    string EventType = ParkingEventType.Entry,
+    string? InImage = null);
