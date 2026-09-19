@@ -28,13 +28,13 @@
   "InDateTime": "2026-09-19T15:30:00+09:00",
   "Groupnum": 1,
   "EventType": "Entry",
-  "InImage": "C:\\ParkingSystem\\Images\\001_001_010_Entry_test.jpg"
+  "InImage": "001_001_010_Entry_test.jpg"
 }
 ```
 
 ### ExitEventRequest
 
-`OutDateTime`, `Groupnum`, `CarType`, `DiscountKeys`, `EventType=Exit`, `OutImage`를 사용한다. 출차 계산은 DB에 저장된 세션의 `Groupnum`, `CarType`과 할인내역을 사용한다.
+`OutDateTime`, `Groupnum`, `CarType`, `DiscountKeys`, `EventType=Exit`, `OutImage`를 사용한다. `InImage`와 `OutImage`에는 경로가 아닌 파일명만 저장한다. 출차 계산은 DB에 저장된 세션의 `Groupnum`, `CarType`과 할인내역을 사용한다.
 
 ### FieldEventResponse
 
