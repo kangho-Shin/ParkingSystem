@@ -56,7 +56,7 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                         request.EventType,
                         request.CarNumber,
                         InDateTimeUtc = request.InDateTime.UtcDateTime,
-                        request.InImage
+                        InImage = VehicleImageName.FileNameOnly(request.InImage)
                     },
                     transaction,
                     cancellationToken: cancellationToken));
@@ -173,7 +173,7 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                         request.LaneId,
                         request.DeviceId,
                         InDateTimeUtc = request.InDateTime.UtcDateTime,
-                        request.InImage
+                        InImage = VehicleImageName.FileNameOnly(request.InImage)
                     },
                     transaction,
                     cancellationToken: cancellationToken));
