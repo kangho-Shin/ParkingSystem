@@ -31,8 +31,11 @@ namespace Parking.EdgeService
             builder.Services.AddScoped<EdgeEventService>();
             builder.Services.AddScoped<PaymentRelayService>();
             builder.Services.AddScoped<EdgeManagementService>();
+            builder.Services.AddSingleton<LprFileNameParser>();
+            builder.Services.AddScoped<LprLaneProcessor>();
             builder.Services.AddHostedService<OutboxWorker>();
             builder.Services.AddHostedService<ConfigurationSyncWorker>();
+            builder.Services.AddHostedService<LprTcpWorker>();
 
             WebApplication app = builder.Build();
             app.Services.GetRequiredService<SqliteOutboxRepository>()
