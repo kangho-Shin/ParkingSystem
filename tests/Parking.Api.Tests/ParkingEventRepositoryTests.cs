@@ -74,6 +74,77 @@ public class ParkingEventRepositoryTests
         Assert.Equal(inImage, stored.EventImage);
     }
 
+    [Fact]
+    public async Task 같은차량_10초이내_재인식은_기존세션을_반환한다()
+    {
+        await ClearTablesAsync();
+        await SetDuplicateEntryTimeAsync(10);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        (long oldSessionId, _) = await CreateExistingSessionAsync(
+            "77가7777", "I", now.AddSeconds(-5));
+        ParkingEventRepository repository = new(ConnectionString);
+
+        FieldEventResponse result = await repository.SaveEntryAsync(
+            new FieldEventRequest(
+                Guid.NewGuid(), 1, 10, 101, "77가7777", now,
+                1, ParkingEventType.Entry, "NEW.jpg"),
+            CancellationToken.None);
+
+        Assert.Equal(oldSessionId, result.ParkingSessionId);
+        Assert.Equal("ENTRY_DUPLICATE", result.ResultCode);
+        Assert.Equal(1, await GetSessionCountAsync());
+    }
+
+    [Fact]
+    public async Task 오래된_I차량은_이전세션과_입차이벤트를_삭제후_새로_입차한다()
+    {
+        await ClearTablesAsync();
+        await SetDuplicateEntryTimeAsync(10);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        (long oldSessionId, Guid oldEventId) = await CreateExistingSessionAsync(
+            "88나8888", "I", now.AddSeconds(-20));
+        ParkingEventRepository repository = new(ConnectionString);
+
+        FieldEventResponse result = await repository.SaveEntryAsync(
+            new FieldEventRequest(
+                Guid.NewGuid(), 1, 10, 101, "88나8888", now,
+                1, ParkingEventType.Entry, "NEW.jpg"),
+            CancellationToken.None);
+
+        Assert.NotEqual(oldSessionId, result.ParkingSessionId);
+        await using MySqlConnection connection = new(ConnectionString);
+        Assert.Equal(0, await connection.ExecuteScalarAsync<long>(
+            "SELECT COUNT(*) FROM parking_session WHERE xindex=@OldSessionId;",
+            new { OldSessionId = oldSessionId }));
+        Assert.Equal(0, await connection.ExecuteScalarAsync<long>(
+            "SELECT COUNT(*) FROM parking_event WHERE eventid=@OldEventId;",
+            new { OldEventId = oldEventId.ToByteArray() }));
+    }
+
+    [Fact]
+    public async Task X차량은_O로_마감후_새로운_I입차를_생성한다()
+    {
+        await ClearTablesAsync();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        (long oldSessionId, _) = await CreateExistingSessionAsync(
+            "99다9999", "X", now.AddMinutes(-10));
+        ParkingEventRepository repository = new(ConnectionString);
+
+        FieldEventResponse result = await repository.SaveEntryAsync(
+            new FieldEventRequest(
+                Guid.NewGuid(), 1, 10, 101, "99다9999", now,
+                1, ParkingEventType.Entry, "NEW.jpg"),
+            CancellationToken.None);
+
+        await using MySqlConnection connection = new(ConnectionString);
+        Assert.Equal("O", await connection.ExecuteScalarAsync<string>(
+            "SELECT outflag FROM parking_session WHERE xindex=@OldSessionId;",
+            new { OldSessionId = oldSessionId }));
+        Assert.Equal("I", await connection.ExecuteScalarAsync<string>(
+            "SELECT outflag FROM parking_session WHERE xindex=@NewSessionId;",
+            new { NewSessionId = result.ParkingSessionId }));
+    }
+
     private static async Task ClearTablesAsync()
     {
         await using MySqlConnection connection = new(ConnectionString);
@@ -90,6 +161,48 @@ public class ParkingEventRepositoryTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM parking_session;");
+    }
+
+    private static async Task SetDuplicateEntryTimeAsync(int seconds)
+    {
+        await using MySqlConnection connection = new(ConnectionString);
+        await connection.ExecuteAsync("""
+            INSERT INTO tparkvariable(sitenum,groupnum,cmd_type,val,opt,msg)
+            VALUES (1,1,'CMD_DUPLICATE_ENTRY_TIME','0',@Seconds,NULL)
+            ON DUPLICATE KEY UPDATE opt=VALUES(opt);
+            """, new { Seconds = seconds.ToString() });
+    }
+
+    private static async Task<(long ParkingSessionId, Guid EventId)> CreateExistingSessionAsync(
+        string carNumber,
+        string outFlag,
+        DateTimeOffset inDateTime)
+    {
+        Guid eventId = Guid.NewGuid();
+        await using MySqlConnection connection = new(ConnectionString);
+        await connection.ExecuteAsync("""
+            INSERT INTO parking_event
+            (eventid,sitenum,groupnum,laneid,deviceid,eventtype,carnum,eventat)
+            VALUES (@EventId,1,1,10,101,'Entry',@CarNumber,@InDateTime);
+            """, new
+        {
+            EventId = eventId.ToByteArray(),
+            CarNumber = carNumber,
+            InDateTime = inDateTime.UtcDateTime
+        });
+        long parkingSessionId = await connection.ExecuteScalarAsync<long>("""
+            INSERT INTO parking_session
+            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indeviceid,indate,outflag)
+            VALUES (1,@EventId,@CarNumber,1,1,10,101,@InDateTime,@OutFlag);
+            SELECT LAST_INSERT_ID();
+            """, new
+        {
+            EventId = eventId.ToByteArray(),
+            CarNumber = carNumber,
+            InDateTime = inDateTime.UtcDateTime,
+            OutFlag = outFlag
+        });
+        return (parkingSessionId, eventId);
     }
 
     private static async Task<string> GetOutFlagAsync(long parkingSessionId)
