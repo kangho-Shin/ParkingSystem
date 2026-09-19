@@ -126,8 +126,8 @@ public sealed class ParkingExitRepositoryTests
 
         Assert.Equal(2, stored.Groupnum);
         Assert.Equal(201, stored.OutDeviceId);
-        Assert.Equal(outImage, stored.OutImage);
-        Assert.Equal(outImage, stored.EventImage);
+        Assert.Equal("001_002_020_Exit_test.jpg", stored.OutImage);
+        Assert.Equal("001_002_020_Exit_test.jpg", stored.EventImage);
     }
 
     private static ExitEventRequest CreateRequest(string carNumber) => new(
