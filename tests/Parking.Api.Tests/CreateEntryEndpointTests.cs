@@ -52,6 +52,21 @@ public class CreateEntryEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact]
+    public async Task 출차_EventType으로_입차요청하면_거부한다()
+    {
+        await using TestApplication factory = new();
+        HttpClient client = factory.CreateClient();
+        FieldEventRequest request = new(
+            Guid.NewGuid(), 1, 10, 101, "12가3456", DateTimeOffset.UtcNow,
+            1, ParkingEventType.Exit);
+
+        HttpResponseMessage response =
+            await PostAsync(client, "/api/v1/parking/entries", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     [Theory]
     [InlineData(0, 10, 101)]
     [InlineData(1, 0, 101)]
