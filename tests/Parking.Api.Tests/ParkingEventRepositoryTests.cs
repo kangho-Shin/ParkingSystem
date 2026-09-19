@@ -27,6 +27,24 @@ public class ParkingEventRepositoryTests
         Assert.Equal(1, await GetSessionCountAsync());
     }
 
+    [Fact]
+    public async Task 입차시_OutFlag는_I이다()
+    {
+        await ClearTablesAsync();
+        ParkingEventRepository repository = new(ConnectionString);
+        FieldEventResponse result = await repository.SaveEntryAsync(
+            new FieldEventRequest(
+                Guid.NewGuid(),
+                1,
+                10,
+                101,
+                "34나5678",
+                DateTimeOffset.UtcNow),
+            CancellationToken.None);
+
+        Assert.Equal("I", await GetOutFlagAsync(result.ParkingSessionId!.Value));
+    }
+
     private static async Task ClearTablesAsync()
     {
         await using MySqlConnection connection = new(ConnectionString);
@@ -43,5 +61,13 @@ public class ParkingEventRepositoryTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM parking_session;");
+    }
+
+    private static async Task<string> GetOutFlagAsync(long parkingSessionId)
+    {
+        await using MySqlConnection connection = new(ConnectionString);
+        return await connection.ExecuteScalarAsync<string>(
+            "SELECT outflag FROM parking_session WHERE xindex=@ParkingSessionId;",
+            new { ParkingSessionId = parkingSessionId });
     }
 }
