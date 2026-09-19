@@ -180,10 +180,10 @@ public sealed class EdgeMonitoringRepository
             SELECT entry_event_id EntryEventId,parking_session_id ParkingSessionId,
                    in_image InImage
             FROM monitor_entry
-            WHERE (@ParkingSessionId IS NOT NULL AND parking_session_id=@ParkingSessionId)
-               OR (@ParkingSessionId IS NULL AND site_id=@SiteId AND groupnum=@Groupnum
-                   AND car_number=@CarNumber)
-            ORDER BY in_at_utc DESC LIMIT 1;
+            WHERE parking_session_id=@ParkingSessionId
+               OR (site_id=@SiteId AND groupnum=@Groupnum AND car_number=@CarNumber)
+            ORDER BY CASE WHEN parking_session_id=@ParkingSessionId THEN 0 ELSE 1 END,
+                     in_at_utc DESC LIMIT 1;
             """;
         const string insertActivity = """
             INSERT INTO monitor_activity
