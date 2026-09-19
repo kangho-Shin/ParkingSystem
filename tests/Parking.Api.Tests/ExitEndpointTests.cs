@@ -137,8 +137,12 @@ public sealed class ExitEndpointTests
         {
             builder.UseSetting("ConnectionStrings:ParkingDatabase", ConnectionString);
             builder.ConfigureServices(services =>
+            {
                 services.AddSingleton<IParkingLaneDirectionValidator>(
-                    new AllowLaneDirectionValidator()));
+                    new AllowLaneDirectionValidator());
+                services.AddSingleton<IPeriodVehicleRepository>(
+                    new NoPeriodVehicleRepository());
+            });
         }
     }
 
@@ -148,5 +152,13 @@ public sealed class ExitEndpointTests
             long siteId, int groupnum, long laneId, long deviceId,
             string eventType, CancellationToken cancellationToken) =>
             Task.FromResult(true);
+    }
+
+    private sealed class NoPeriodVehicleRepository : IPeriodVehicleRepository
+    {
+        public Task<PeriodMember?> FindMemberAsync(long siteId, int groupnum, string carNumber, DateTimeOffset at, CancellationToken cancellationToken) => Task.FromResult<PeriodMember?>(null);
+        public Task<FieldEventResponse> SaveEntryAsync(FieldEventRequest request, PeriodMember member, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<OpenPeriodSession?> FindOpenAsync(long siteId, int groupnum, string carNumber, CancellationToken cancellationToken) => Task.FromResult<OpenPeriodSession?>(null);
+        public Task<FieldEventResponse> SaveExitAsync(ExitEventRequest request, OpenPeriodSession session, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }
