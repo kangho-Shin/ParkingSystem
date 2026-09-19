@@ -45,6 +45,35 @@ public class ParkingEventRepositoryTests
         Assert.Equal("I", await GetOutFlagAsync(result.ParkingSessionId!.Value));
     }
 
+    [Fact]
+    public async Task 입차시_그룹_장비_InImage를_저장한다()
+    {
+        await ClearTablesAsync();
+        const string inImage = @"C:\ParkingSystem\Images\001_002_010_Entry_test.jpg";
+        FieldEventRequest request = new(
+            Guid.NewGuid(), 1, 10, 101, "56다7890", DateTimeOffset.UtcNow,
+            2, ParkingEventType.Entry, inImage);
+        ParkingEventRepository repository = new(ConnectionString);
+
+        FieldEventResponse result = await repository.SaveEntryAsync(
+            request,
+            CancellationToken.None);
+
+        await using MySqlConnection connection = new(ConnectionString);
+        EntryStorageRow stored = await connection.QuerySingleAsync<EntryStorageRow>("""
+            SELECT s.groupnum Groupnum, s.indeviceid InDeviceId,
+                   s.inimage InImage, e.imagepath EventImage
+            FROM parking_session s
+            JOIN parking_event e ON e.eventid=s.ineventid
+            WHERE s.xindex=@ParkingSessionId;
+            """, new { ParkingSessionId = result.ParkingSessionId });
+
+        Assert.Equal(2, stored.Groupnum);
+        Assert.Equal(101, stored.InDeviceId);
+        Assert.Equal(inImage, stored.InImage);
+        Assert.Equal(inImage, stored.EventImage);
+    }
+
     private static async Task ClearTablesAsync()
     {
         await using MySqlConnection connection = new(ConnectionString);
@@ -69,5 +98,13 @@ public class ParkingEventRepositoryTests
         return await connection.ExecuteScalarAsync<string>(
             "SELECT outflag FROM parking_session WHERE xindex=@ParkingSessionId;",
             new { ParkingSessionId = parkingSessionId });
+    }
+
+    private sealed class EntryStorageRow
+    {
+        public int Groupnum { get; set; }
+        public long InDeviceId { get; set; }
+        public string? InImage { get; set; }
+        public string? EventImage { get; set; }
     }
 }
