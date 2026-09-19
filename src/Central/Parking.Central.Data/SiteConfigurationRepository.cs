@@ -27,7 +27,8 @@ public sealed class SiteConfigurationRepository : ISiteConfigurationRepository
         IReadOnlyList<ParkingDevice> devices = (await connection.QueryAsync<ParkingDevice>(
             new CommandDefinition("""
                 SELECT deviceid DeviceId,sitenum SiteId,laneid LaneId,devicenum DeviceNumber,
-                       devicetype DeviceType,devicename DeviceName,ipaddr IpAddress,useflag Enabled
+                       devicetype DeviceType,devicename DeviceName,ipaddr IpAddress,
+                       useflag Enabled,port Port
                 FROM parking_device WHERE sitenum=@SiteId ORDER BY devicenum;
                 """, new { SiteId = siteId }, cancellationToken: cancellationToken))).AsList();
 
@@ -50,10 +51,11 @@ public sealed class SiteConfigurationRepository : ISiteConfigurationRepository
 
     public Task SaveDeviceAsync(ParkingDevice device, CancellationToken cancellationToken) =>
         ExecuteAsync("""
-            INSERT INTO parking_device(deviceid,sitenum,laneid,devicenum,devicetype,devicename,ipaddr,useflag)
-            VALUES(@DeviceId,@SiteId,@LaneId,@DeviceNumber,@DeviceType,@DeviceName,@IpAddress,@Enabled)
+            INSERT INTO parking_device(deviceid,sitenum,laneid,devicenum,devicetype,devicename,ipaddr,port,useflag)
+            VALUES(@DeviceId,@SiteId,@LaneId,@DeviceNumber,@DeviceType,@DeviceName,@IpAddress,@Port,@Enabled)
             ON DUPLICATE KEY UPDATE sitenum=@SiteId,laneid=@LaneId,devicenum=@DeviceNumber,
-                                    devicetype=@DeviceType,devicename=@DeviceName,ipaddr=@IpAddress,useflag=@Enabled;
+                                    devicetype=@DeviceType,devicename=@DeviceName,ipaddr=@IpAddress,
+                                    port=@Port,useflag=@Enabled;
             """, device, cancellationToken);
 
     private async Task ExecuteAsync(string sql, object value, CancellationToken cancellationToken)
