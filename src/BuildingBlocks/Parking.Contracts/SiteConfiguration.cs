@@ -21,7 +21,8 @@ public sealed record ParkingDevice(
     string DeviceType,
     string DeviceName,
     string? IpAddress,
-    bool Enabled);
+    bool Enabled,
+    int? Port = null);
 
 public sealed record SiteConfiguration(
     ParkingSite Site,
