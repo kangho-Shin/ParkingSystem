@@ -311,10 +311,52 @@ CREATE TABLE IF NOT EXISTS tperiodinout (
         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 시험 현장 9001 / 그룹 2 기본 장치 구성
+INSERT INTO parking_site(sitenum,sitename,useflag)
+VALUES(9001,'시험현장',1)
+ON DUPLICATE KEY UPDATE sitename=VALUES(sitename),useflag=VALUES(useflag);
+
+INSERT INTO parking_lane(laneid,sitenum,groupnum,lanename,direction,useflag) VALUES
+(9010,9001,2,'입차차로','Entry',1),
+(9020,9001,2,'출차차로','Exit',1)
+ON DUPLICATE KEY UPDATE sitenum=VALUES(sitenum),groupnum=VALUES(groupnum),
+lanename=VALUES(lanename),direction=VALUES(direction),useflag=VALUES(useflag);
+
+INSERT INTO parking_device
+(deviceid,sitenum,laneid,devicenum,devicetype,devicename,ipaddr,port,useflag) VALUES
+(2001,9001,9020,201,'KIOSK','출구무인',NULL,NULL,1),
+(4001,9001,9010,401,'LPR','입차LPR',NULL,NULL,1),
+(4002,9001,9020,402,'LPR','출차LPR',NULL,NULL,1),
+(4003,9001,9010,403,'LPR','보조입차LPR',NULL,29200,0),
+(4004,9001,9020,404,'LPR','보조출차LPR',NULL,29200,0),
+(5001,9001,9020,501,'LDM','출구전광판','192.168.0.151',35000,1)
+ON DUPLICATE KEY UPDATE sitenum=VALUES(sitenum),laneid=VALUES(laneid),
+devicenum=VALUES(devicenum),devicetype=VALUES(devicetype),
+devicename=VALUES(devicename),ipaddr=VALUES(ipaddr),port=VALUES(port),
+useflag=VALUES(useflag);
+
+INSERT INTO parking_device_link
+(sitenum,sourcedeviceid,targetdeviceid,linktype,useflag) VALUES
+(9001,2001,5001,'LDM',1),
+(9001,4002,2001,'KIOSK',1),
+(9001,4002,5001,'LDM',1)
+ON DUPLICATE KEY UPDATE useflag=VALUES(useflag);
+
+INSERT INTO parking_site_sync(sitenum,authkeyhash,configversion)
+VALUES(9001,'1407e87efd8347ff0be25f5d3273f73578199d34f665f6be1ab4c920ea1431e3',1)
+ON DUPLICATE KEY UPDATE authkeyhash=VALUES(authkeyhash),
+configversion=VALUES(configversion),updatedat=CURRENT_TIMESTAMP;
+
 -- 기본 요금 및 운영변수 시험 데이터
 INSERT INTO tparkfee
 (sitenum,groupnum,weektype,dayshift,cartype,feestep,parktime,parkfee,maxcount)
 VALUES
+(1,1,1,0,1,1,30,0,1),
+(1,1,1,0,1,2,10,200,3),
+(1,1,1,0,1,3,10,300,0),
+(1,1,2,0,1,1,30,0,1),
+(1,1,2,0,1,2,10,200,3),
+(1,1,2,0,1,3,10,300,0),
 (9001,2,1,0,1,1,30,0,1),
 (9001,2,1,0,1,2,10,200,3),
 (9001,2,1,0,1,3,10,300,0),
@@ -326,6 +368,21 @@ parktime=VALUES(parktime),parkfee=VALUES(parkfee),maxcount=VALUES(maxcount);
 
 INSERT INTO tparkvariable(sitenum,groupnum,cmd_type,val,opt,msg)
 VALUES
+(1,1,'CMD_MAXDAILY_FEE','0','20000',NULL),
+(1,1,'CMD_GRACE_TIME','0','30',NULL),
+(1,1,'CMD_PREPAY_GRACE','0','10',NULL),
+(1,1,'CMD_SERVICE_TIME','0','0',NULL),
+(1,1,'CMD_DUPLICATE_ENTRY_TIME','0','10',NULL),
+(1,1,'CMD_WEEKENDUSE','0','0',NULL),
+(1,1,'CMD_HOLIDAYUSE','0','0',NULL),
+(1,1,'CMD_KIOSK_OFFLINE_POLICY','OPEN',NULL,NULL),
+(1,1,'CMD_OPTIME00',NULL,'00:00~23:59:59',NULL),
+(1,1,'CMD_OPTIME01',NULL,'00:00~23:59:59',NULL),
+(1,1,'CMD_OPTIME02',NULL,'00:00~23:59:59',NULL),
+(1,1,'CMD_OPTIME03',NULL,'00:00~23:59:59',NULL),
+(1,1,'CMD_OPTIME04',NULL,'00:00~23:59:59',NULL),
+(1,1,'CMD_OPTIME05',NULL,'00:00~23:59:59',NULL),
+(1,1,'CMD_OPTIME06',NULL,'00:00~23:59:59',NULL),
 (9001,2,'CMD_MAXDAILY_FEE','0','20000',NULL),
 (9001,2,'CMD_GRACE_TIME','0','30',NULL),
 (9001,2,'CMD_PREPAY_GRACE','0','10',NULL),
