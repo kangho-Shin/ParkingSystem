@@ -30,4 +30,24 @@ public sealed class DeviceLinkSelectorTests
 
         Assert.Equal(new long[] { 301 }, targets.Select(device => device.DeviceId));
     }
+
+    [Fact]
+    public void 출구무인에_연결된_출차LPR을_역방향으로_찾는다()
+    {
+        SiteConfiguration configuration = new(
+            new ParkingSite(9001, "시험", true),
+            new[] { new ParkingLane(9020, 9001, 2, "출차", "Exit", true) },
+            new ParkingDevice[]
+            {
+                new(4002, 9001, 9020, 402, "LPR", "출차LPR", null, true),
+                new(2001, 9001, 9020, 201, "KIOSK", "출구무인", null, true)
+            },
+            new[] { new ParkingDeviceLink(9001, 4002, 2001, "KIOSK", true) });
+
+        ParkingDevice? lpr = DeviceLinkSelector.FindSource(
+            configuration, 2001, "KIOSK", "LPR");
+
+        Assert.Equal(4002, lpr!.DeviceId);
+        Assert.Equal(9020, lpr.LaneId);
+    }
 }
