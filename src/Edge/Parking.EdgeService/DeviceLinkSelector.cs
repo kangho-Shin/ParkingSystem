@@ -28,4 +28,25 @@ public static class DeviceLinkSelector
                 string.Equals(device.DeviceType, targetDeviceType, StringComparison.OrdinalIgnoreCase))
             .ToArray();
     }
+
+    public static ParkingDevice? FindSource(
+        SiteConfiguration configuration,
+        long targetDeviceId,
+        string linkType,
+        string sourceDeviceType)
+    {
+        long? sourceId = (configuration.DeviceLinks ?? Array.Empty<ParkingDeviceLink>())
+            .Where(link => link.Enabled &&
+                link.SiteId == configuration.Site.SiteId &&
+                link.TargetDeviceId == targetDeviceId &&
+                link.SourceDeviceId != link.TargetDeviceId &&
+                string.Equals(link.LinkType, linkType, StringComparison.OrdinalIgnoreCase))
+            .Select(link => (long?)link.SourceDeviceId)
+            .FirstOrDefault();
+        return sourceId is null
+            ? null
+            : configuration.Devices.FirstOrDefault(device =>
+                device.Enabled && device.DeviceId == sourceId &&
+                string.Equals(device.DeviceType, sourceDeviceType, StringComparison.OrdinalIgnoreCase));
+    }
 }
