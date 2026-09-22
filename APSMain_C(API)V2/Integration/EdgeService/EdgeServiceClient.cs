@@ -113,7 +113,7 @@ public sealed class EdgeServiceClient
                 _options.Devicenum
             },
             CarNumber = carNumber,
-            DisplayMessage = $"주차요금 {payableAmount:N0}원",
+            DisplayMessage = $"요금 {payableAmount:N0}원",
             DisplaySeconds = 100
         });
         try
