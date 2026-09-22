@@ -1,0 +1,30 @@
+-- 기존 테이블을 삭제하거나 데이터를 추가하지 않는다.
+-- 운영 시간은 한국시간으로 저장하며 초 이하 값은 사용하지 않는다.
+
+ALTER TABLE parking_event
+    MODIFY eventat DATETIME NOT NULL,
+    MODIFY createdat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE parking_session
+    MODIFY indate DATETIME NOT NULL,
+    MODIFY paydate DATETIME NULL,
+    MODIFY outdate DATETIME NULL;
+
+ALTER TABLE payment
+    MODIFY paydate DATETIME NOT NULL,
+    MODIFY createdat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE tperiodinout
+    MODIFY indatetime DATETIME NOT NULL,
+    MODIFY outdatetime DATETIME NULL,
+    MODIFY createdat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE vehicle_eligibility
+    MODIFY checkdate DATETIME NOT NULL,
+    MODIFY expiredate DATETIME NULL,
+    MODIFY createdat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE parking_session_discount
+    MODIFY sdate DATETIME NOT NULL,
+    MODIFY applydate DATETIME NULL,
+    MODIFY createdat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
