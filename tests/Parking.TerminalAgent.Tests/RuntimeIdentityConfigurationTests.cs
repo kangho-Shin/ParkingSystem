@@ -49,6 +49,15 @@ public sealed class RuntimeIdentityConfigurationTests
         Assert.DoesNotContain("database=parking;", batch, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void APSMain_전체시험은_DB변경_테스트를_실행하지_않는다()
+    {
+        string root = FindRepositoryRoot();
+        string batch = File.ReadAllText(Path.Combine(root, "run-apsmain-edge-test.bat"));
+
+        Assert.Contains("Category!=DatabaseMutation", batch, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string FindRepositoryRoot()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);

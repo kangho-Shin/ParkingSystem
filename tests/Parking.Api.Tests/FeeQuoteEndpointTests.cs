@@ -10,6 +10,7 @@ using Parking.Api.Features.Fees;
 namespace Parking.Api.Tests;
 
 [Collection("Database")]
+[Trait("Category", "DatabaseMutation")]
 public sealed class FeeQuoteEndpointTests
 {
     private static string ConnectionString =>

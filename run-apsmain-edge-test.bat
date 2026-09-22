@@ -39,7 +39,7 @@ if errorlevel 1 goto :failed
 pause
 
 echo [4/8] Run all tests, then APSMain integration tests
-dotnet test ParkingSystem.sln --no-build
+dotnet test ParkingSystem.sln --no-build --filter "Category!=DatabaseMutation"
 if errorlevel 1 goto :failed
 dotnet test tests\APSMain.EdgeIntegration.Tests\APSMain.EdgeIntegration.Tests.csproj --no-restore
 if errorlevel 1 goto :failed

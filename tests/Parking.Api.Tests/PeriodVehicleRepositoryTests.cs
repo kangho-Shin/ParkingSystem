@@ -6,6 +6,7 @@ using Parking.Contracts;
 namespace Parking.Api.Tests;
 
 [Collection("Database")]
+[Trait("Category", "DatabaseMutation")]
 public sealed class PeriodVehicleRepositoryTests
 {
     private static string ConnectionString =>

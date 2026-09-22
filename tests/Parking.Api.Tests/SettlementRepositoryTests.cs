@@ -5,6 +5,7 @@ using Parking.Central.Data;
 namespace Parking.Api.Tests;
 
 [Collection("Database")]
+[Trait("Category", "DatabaseMutation")]
 public sealed class SettlementRepositoryTests
 {
     private static string ConnectionString =>

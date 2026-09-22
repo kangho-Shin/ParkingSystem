@@ -12,6 +12,7 @@ using Parking.Contracts;
 namespace Parking.Api.Tests;
 
 [Collection("Database")]
+[Trait("Category", "DatabaseMutation")]
 public sealed class ExitEndpointTests
 {
     private const int TestGroupnum = 98;
