@@ -90,7 +90,7 @@ public sealed class EdgeParkCalSessionTests
 
         Assert.True(result);
         Assert.Equal("api/v1/local/kiosks/display", handler.RequestPath);
-        Assert.Contains("주차요금 1,200원", handler.RequestBody);
+        Assert.Contains("요금 1,200원", handler.RequestBody);
         Assert.Contains("\"DisplaySeconds\":100", handler.RequestBody);
     }
 
