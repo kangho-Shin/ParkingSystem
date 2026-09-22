@@ -55,6 +55,13 @@ public sealed class EdgeParkCalSession
         return result.IsSuccess;
     }
 
+    public async Task<bool> ResetDisplayAsync(CancellationToken token = default)
+    {
+        EdgeCallResult<bool> result = await _client.ResetDisplayAsync(token);
+        LastError = result.IsSuccess ? null : result.Error ?? "전광판 초기화에 실패했습니다.";
+        return result.IsSuccess;
+    }
+
     public bool CompletePayment(Tparkinfo parkinfo, bool paymentApproved)
     {
         if (_paymentCompleted) return true;
