@@ -101,7 +101,7 @@ public sealed class PaymentRepository : IPaymentRepository
                  payamount,paymethod,approvalnum,terminalid,paydate)
                 VALUES
                 (@PaymentId,@ParkingSessionId,@SiteId,@OriginalFee,@DiscountFee,
-                 @PaidAmount,@PaymentMethod,@ApprovalNumber,@TerminalId,@PaidAtUtc);
+                 @PaidAmount,@PaymentMethod,@ApprovalNumber,@TerminalId,@PaidAtLocal);
                 """,
                 new
                 {
@@ -116,20 +116,20 @@ public sealed class PaymentRepository : IPaymentRepository
                     TerminalId = string.IsNullOrWhiteSpace(request.TerminalId)
                         ? null
                         : request.TerminalId.Trim(),
-                    PaidAtUtc = request.PaidAt.UtcDateTime
+                    PaidAtLocal = ParkingLocalTime.ToDatabase(request.PaidAt)
                 },
                 transaction,
                 cancellationToken: cancellationToken));
 
             await connection.ExecuteAsync(new CommandDefinition("""
                 UPDATE parking_session
-                SET outflag='X', paydate=@PaidAtUtc
+                SET outflag='X', paydate=@PaidAtLocal
                 WHERE xindex=@ParkingSessionId;
                 """,
                 new
                 {
                     request.ParkingSessionId,
-                    PaidAtUtc = request.PaidAt.UtcDateTime
+                    PaidAtLocal = ParkingLocalTime.ToDatabase(request.PaidAt)
                 },
                 transaction,
                 cancellationToken: cancellationToken));
@@ -182,10 +182,7 @@ public sealed class PaymentRepository : IPaymentRepository
         row.PaymentMethod == request.PaymentMethod.Trim() &&
         row.ApprovalNumber == request.ApprovalNumber.Trim() &&
         (row.TerminalId ?? "") == (request.TerminalId?.Trim() ?? "") &&
-        DateTime.SpecifyKind(row.PaidAt, DateTimeKind.Utc) == TruncateToMicroseconds(request.PaidAt.UtcDateTime);
-
-    private static DateTime TruncateToMicroseconds(DateTime value) =>
-        new(value.Ticks - value.Ticks % 10, DateTimeKind.Utc);
+        row.PaidAt == ParkingLocalTime.ToDatabase(request.PaidAt);
 
     private static PaymentCompleteResponse Success(Guid paymentId, long parkingSessionId) =>
         new(paymentId, parkingSessionId, true, "PAYMENT_COMPLETED", "결제가 완료되었습니다.", true);
