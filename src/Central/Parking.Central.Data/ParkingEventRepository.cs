@@ -40,7 +40,7 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                  carnum, eventat, imagepath)
                 VALUES
                 (@EventId, @SiteId, @Groupnum, @LaneId, @DeviceId, @EventType,
-                 @CarNumber, @InDateTimeUtc, @InImage);
+                 @CarNumber, @InDateTimeLocal, @InImage);
                 """;
 
             int inserted = await connection.ExecuteAsync(
@@ -55,7 +55,7 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                         request.DeviceId,
                         request.EventType,
                         request.CarNumber,
-                        InDateTimeUtc = request.InDateTime.UtcDateTime,
+                        InDateTimeLocal = ParkingLocalTime.ToDatabase(request.InDateTime),
                         InImage = VehicleImageName.FileNameOnly(request.InImage)
                     },
                     transaction,
@@ -104,10 +104,8 @@ public sealed class ParkingEventRepository : IParkingEventRepository
 
             if (existing is not null && existing.OutFlag == "I")
             {
-                DateTime existingInDateTimeUtc = DateTime.SpecifyKind(
-                    existing.InDateTime,
-                    DateTimeKind.Utc);
-                TimeSpan elapsed = request.InDateTime.UtcDateTime - existingInDateTimeUtc;
+                TimeSpan elapsed = ParkingLocalTime.ToDatabase(request.InDateTime) -
+                    existing.InDateTime;
 
                 if (elapsed.TotalSeconds <= Math.Max(duplicateEntrySeconds, 0))
                 {
@@ -156,7 +154,7 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                  indeviceid, indate, inimage, outflag)
                 VALUES
                 (@SiteId, @EventId, @CarNumber, @Groupnum, 1, @LaneId,
-                 @DeviceId, @InDateTimeUtc, @InImage, 'I');
+                 @DeviceId, @InDateTimeLocal, @InImage, 'I');
 
                 SELECT LAST_INSERT_ID();
                 """;
@@ -172,7 +170,7 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                         request.Groupnum,
                         request.LaneId,
                         request.DeviceId,
-                        InDateTimeUtc = request.InDateTime.UtcDateTime,
+                        InDateTimeLocal = ParkingLocalTime.ToDatabase(request.InDateTime),
                         InImage = VehicleImageName.FileNameOnly(request.InImage)
                     },
                     transaction,
