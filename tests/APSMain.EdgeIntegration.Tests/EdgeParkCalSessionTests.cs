@@ -101,7 +101,13 @@ public sealed class EdgeParkCalSessionTests
         EdgeServiceClient client = new(
             new HttpClient(handler) { BaseAddress = new Uri("http://localhost:5200/") },
             new EdgeServiceOptions(new Uri("http://localhost:5200/"), 9001, 2, 201));
-        EdgeParkCalSession session = new(client, new KioskExitContext(), new FeeQuote());
+        KioskExitContext context = new()
+        {
+            Notification = new KioskExitNotification(
+                Guid.NewGuid(), 9001, 2, 0, 0,
+                "12가3456", DateTimeOffset.Now, null)
+        };
+        EdgeParkCalSession session = new(client, context, new FeeQuote());
 
         bool result = await session.ResetDisplayAsync();
 
