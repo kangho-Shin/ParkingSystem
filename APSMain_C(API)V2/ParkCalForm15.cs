@@ -1267,6 +1267,8 @@ namespace APSMain
         {
             if (_isClosing) { return; }
 
+            ResetEdgeDisplay();
+
             StopAutoCloseTimer();
 
             if (_parkRemainFee > 0 && btnOk.Enabled == false) {
@@ -1284,6 +1286,8 @@ namespace APSMain
         private void btnHome_Click(object sender, EventArgs e)
         {
             if (_isClosing) { return; }
+
+            ResetEdgeDisplay();
 
             StopAutoCloseTimer();
 
@@ -1468,6 +1472,8 @@ namespace APSMain
         {
             if (_isClosing) { return; }
 
+            ResetEdgeDisplay();
+
             StopAutoCloseTimer();
 
             if (_parkRemainFee > 0 && btnOk.Enabled == false) {
@@ -1477,6 +1483,14 @@ namespace APSMain
             Result = FormResult.FormHome;
             _mainForm!.PlaySoundFile("btnHome1.mp3", AudioRouteState.Dual, 1);
             BeginInvoke((Action)(() => this.Close()));
+        }
+
+        private void ResetEdgeDisplay()
+        {
+            if (_edgeSession == null) return;
+            bool reset = Task.Run(() => _edgeSession.ResetDisplayAsync()).GetAwaiter().GetResult();
+            if (!reset)
+                XLogClass?.SaveLogString("CAL", _edgeSession.LastError ?? "전광판 초기화에 실패했습니다.");
         }
 
         public void DoActiveButton()
