@@ -7,13 +7,14 @@ public static class DisplayBoardProtocol
     public static ReadOnlySpan<byte> GateOpen =>
         new byte[] { 0x02, 0xFF, 0xC1, 0x30, 0x35, 0x39, 0x03 };
 
-    public static byte[] CreateTwoLine(string firstLine, string secondLine)
+    public static byte[] CreateTwoLine(
+        string firstLine, string secondLine, int displaySeconds = 11)
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         Encoding encoding = Encoding.GetEncoding(949);
         List<byte> packet = new(128)
         {
-            0x02, 0xFF, 0x1B, (byte)'I', (byte)(0x30 + 11), (byte)'M', (byte)'0', (byte)'1',
+            0x02, 0xFF, 0x1B, (byte)'I', unchecked((byte)(0x30 + displaySeconds)), (byte)'M', (byte)'0', (byte)'1',
             ScrollFlag(firstLine), 0x10, (byte)'W'
         };
         packet.AddRange(encoding.GetBytes(firstLine));
