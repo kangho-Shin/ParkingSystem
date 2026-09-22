@@ -182,8 +182,8 @@ namespace APSMain
 
         public static bool wheelChar = false;
         public static int SoundRepeatTime = 120;
-        public static string MAINTERMID = "KIOSK_TEST";
-        public static string SMPGID = "test_sam";
+        public static string MAINTERMID = "TEST_TERMINAL";
+        public static string SMPGID = "TEST_PG";
 
         public static bool debugmode { get; set; } = false;
         public static int DebugX { get; set; }

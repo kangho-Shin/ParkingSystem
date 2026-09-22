@@ -20,7 +20,6 @@ set "ASPNETCORE_ENVIRONMENT=Development"
 
 echo [1/8] Stop previously running Parking programs
 powershell -NoProfile -Command "$names=@('APSMain','Parking.Api','Parking.EdgeGateway','Parking.EdgeService','Parking.EdgeManager','Parking.Operator','Parking.KioskSimulator','Parking.TerminalAgent'); Get-Process -ErrorAction SilentlyContinue | Where-Object { $names -contains $_.ProcessName } | Stop-Process -Force -ErrorAction SilentlyContinue"
-pause
 
 echo [2/8] Restore all projects
 dotnet restore ParkingSystem.sln
@@ -29,21 +28,18 @@ dotnet restore "APSMain_C(API)V2\APSMain.csproj"
 if errorlevel 1 goto :failed
 dotnet restore tests\APSMain.EdgeIntegration.Tests\APSMain.EdgeIntegration.Tests.csproj
 if errorlevel 1 goto :failed
-pause
 
 echo [3/8] Build full solution and APSMain
 dotnet build ParkingSystem.sln --no-restore
 if errorlevel 1 goto :failed
 dotnet build "APSMain_C(API)V2\APSMain.csproj" --no-restore
 if errorlevel 1 goto :failed
-pause
 
 echo [4/8] Run all tests, then APSMain integration tests
 dotnet test ParkingSystem.sln --no-build --filter "Category!=DatabaseMutation"
 if errorlevel 1 goto :failed
 dotnet test tests\APSMain.EdgeIntegration.Tests\APSMain.EdgeIntegration.Tests.csproj --no-restore
 if errorlevel 1 goto :failed
-pause
 
 echo [5/8] Start Parking.Api on http://localhost:5000
 set "ASPNETCORE_URLS=http://localhost:5000"

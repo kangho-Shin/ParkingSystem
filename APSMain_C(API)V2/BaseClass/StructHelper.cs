@@ -122,7 +122,7 @@ namespace APSMain.BaseClass
         }
 
         /// <summary>
-        /// WriteString(ref udata, nameof(STUDPDATA.srcip), 20, "10.0.0.7");
+        /// WriteString(ref udata, nameof(STUDPDATA.srcip), 20, "x.x.x.x");
         /// ASCII/KS5601 등 문자열 쓰기(남는 바이트 0, NUL 종료 옵션)
         /// </summary>
         /// <typeparam name="T"></typeparam>
