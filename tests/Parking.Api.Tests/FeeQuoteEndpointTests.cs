@@ -45,8 +45,10 @@ public sealed class FeeQuoteEndpointTests
             {
                 EventId = Guid.NewGuid().ToByteArray(),
                 CarNumber = carNumber,
-                EntryAt = paydate.AddHours(-2),
-                Paydate = paydate
+                EntryAt = Parking.Central.Data.ParkingLocalTime.ToDatabase(
+                    new DateTimeOffset(paydate.AddHours(-2), TimeSpan.Zero)),
+                Paydate = Parking.Central.Data.ParkingLocalTime.ToDatabase(
+                    new DateTimeOffset(paydate, TimeSpan.Zero))
             });
 
             await connection.ExecuteAsync("""
@@ -65,7 +67,8 @@ public sealed class FeeQuoteEndpointTests
             {
                 ParkingSessionId = parkingSessionId,
                 CarNumber = carNumber,
-                Paydate = paydate,
+                Paydate = Parking.Central.Data.ParkingLocalTime.ToDatabase(
+                    new DateTimeOffset(paydate, TimeSpan.Zero)),
                 PaymentId = Guid.NewGuid().ToByteArray()
             });
         }
@@ -112,7 +115,8 @@ public sealed class FeeQuoteEndpointTests
             {
                 EventId = Guid.NewGuid().ToByteArray(),
                 CarNumber = $"FREE{Guid.NewGuid():N}"[..20],
-                EntryAt = exitAt.AddMinutes(-10)
+                EntryAt = Parking.Central.Data.ParkingLocalTime.ToDatabase(
+                    new DateTimeOffset(exitAt.AddMinutes(-10), TimeSpan.Zero))
             });
         }
 
