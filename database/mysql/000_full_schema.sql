@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS parking_site (
     sitenum BIGINT NOT NULL,
     sitename VARCHAR(100) NOT NULL,
     useflag TINYINT(1) NOT NULL DEFAULT 1,
-    updatedat DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    updatedat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (sitenum)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS parking_lane (
     lanename VARCHAR(100) NOT NULL,
     direction VARCHAR(10) NOT NULL,
     useflag TINYINT(1) NOT NULL DEFAULT 1,
-    updatedat DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    updatedat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (laneid),
     INDEX ix_parking_lane_site_group (sitenum, groupnum),
     CONSTRAINT fk_parking_lane_site
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS parking_device (
     ipaddr VARCHAR(45) NULL,
     port INT NULL,
     useflag TINYINT(1) NOT NULL DEFAULT 1,
-    updatedat DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    updatedat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (deviceid),
     UNIQUE KEY ux_parking_device_site_number (sitenum, devicenum),
     INDEX ix_parking_device_lane (laneid),
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS parking_site_sync (
     sitenum BIGINT NOT NULL,
     authkeyhash CHAR(64) NOT NULL,
     configversion BIGINT NOT NULL DEFAULT 0,
-    updatedat DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updatedat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (sitenum),
     CONSTRAINT fk_parking_site_sync_site
         FOREIGN KEY (sitenum) REFERENCES parking_site(sitenum)
