@@ -5,6 +5,7 @@ using Dapper;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using MySqlConnector;
+using Parking.Central.Data;
 using Parking.Contracts;
 
 namespace Parking.Api.Tests;
@@ -88,7 +89,8 @@ public sealed class ParkingSearchEndpointTests
         {
             EventId = Guid.NewGuid().ToByteArray(),
             CarNumber = carNumber,
-            InDateTime = inDateTime,
+            InDateTime = ParkingLocalTime.ToDatabase(
+                new DateTimeOffset(DateTime.SpecifyKind(inDateTime, DateTimeKind.Utc))),
             InImage = inImage
         });
     }
