@@ -35,7 +35,7 @@ public sealed class EdgeParkCalSessionTests
     }
 
     [Fact]
-    public async Task Manual_settlement_sends_completion_message_to_kiosk_display()
+    public async Task Manual_settlement_completes_exit_through_linked_exit_lpr()
     {
         RecordingHandler handler = new();
         EdgeServiceClient client = new(
@@ -60,9 +60,38 @@ public sealed class EdgeParkCalSessionTests
         bool result = await session.CompleteExitAsync();
 
         Assert.True(result);
-        Assert.Equal("api/v1/local/kiosks/display", handler.RequestPath);
+        Assert.Equal("api/v1/local/kiosks/manual-exit/complete", handler.RequestPath);
         Assert.Contains("12가3456", handler.RequestBody);
-        Assert.Contains("정산 완료되었습니다.", handler.RequestBody);
+    }
+
+    [Fact]
+    public async Task Payable_fee_is_sent_to_kiosk_display_for_100_seconds()
+    {
+        RecordingHandler handler = new();
+        EdgeServiceClient client = new(
+            new HttpClient(handler) { BaseAddress = new Uri("http://localhost:5200/") },
+            new EdgeServiceOptions(new Uri("http://localhost:5200/"), 9001, 2, 201));
+        FeeQuote quote = new()
+        {
+            ParkingSessionId = 683,
+            CarNumber = "12가3456",
+            PayableAmount = 1200,
+            Fee = new FeeResult { OriginalFee = 1200 }
+        };
+        KioskExitContext context = new()
+        {
+            Notification = new KioskExitNotification(
+                Guid.NewGuid(), 9001, 2, 0, 0,
+                "12가3456", DateTimeOffset.Now, null)
+        };
+        EdgeParkCalSession session = new(client, context, quote);
+
+        bool result = await session.DisplayFeeAsync();
+
+        Assert.True(result);
+        Assert.Equal("api/v1/local/kiosks/display", handler.RequestPath);
+        Assert.Contains("주차요금 1,200원", handler.RequestBody);
+        Assert.Contains("\"DisplaySeconds\":100", handler.RequestBody);
     }
 
     private sealed class RejectingHandler : HttpMessageHandler
@@ -91,7 +120,10 @@ public sealed class EdgeParkCalSessionTests
             RequestBody = request.Content is null
                 ? null
                 : await request.Content.ReadAsStringAsync(cancellationToken);
-            return new HttpResponseMessage(System.Net.HttpStatusCode.OK);
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"Accepted\":true,\"DisplayMessage\":\"정산 완료되었습니다.\"}")
+            };
         }
     }
 }
