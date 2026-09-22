@@ -45,7 +45,7 @@ public sealed class ParkingSearchRepository : IParkingSearchRepository
             row.CarNumber,
             row.Groupnum,
             row.CarType,
-            new DateTimeOffset(DateTime.SpecifyKind(row.InDateTime, DateTimeKind.Utc)),
+            ParkingLocalTime.FromDatabase(row.InDateTime),
             row.InImage)).ToList();
     }
 
