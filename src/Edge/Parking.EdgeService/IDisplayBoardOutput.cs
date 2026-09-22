@@ -18,6 +18,7 @@ public interface IDisplayBoardOutput
         long sourceDeviceId,
         LprRecognition recognition,
         FieldEventResponse response,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken,
+        int displaySeconds = 11) =>
         SendAsync(recognition, response, cancellationToken);
 }
