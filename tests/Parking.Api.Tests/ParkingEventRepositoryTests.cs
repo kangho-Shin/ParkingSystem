@@ -189,7 +189,7 @@ public class ParkingEventRepositoryTests
         {
             EventId = eventId.ToByteArray(),
             CarNumber = carNumber,
-            InDateTime = inDateTime.UtcDateTime
+            InDateTime = ParkingLocalTime.ToDatabase(inDateTime)
         });
         long parkingSessionId = await connection.ExecuteScalarAsync<long>("""
             INSERT INTO parking_session
@@ -200,7 +200,7 @@ public class ParkingEventRepositoryTests
         {
             EventId = eventId.ToByteArray(),
             CarNumber = carNumber,
-            InDateTime = inDateTime.UtcDateTime,
+            InDateTime = ParkingLocalTime.ToDatabase(inDateTime),
             OutFlag = outFlag
         });
         return (parkingSessionId, eventId);
