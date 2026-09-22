@@ -46,6 +46,15 @@ public sealed class EdgeParkCalSession
         return calculator.totalRemainFee;
     }
 
+    public async Task<bool> DisplayFeeAsync(CancellationToken token = default)
+    {
+        if (Quote.PayableAmount <= 0) return true;
+        EdgeCallResult<bool> result = await _client.DisplayFeeAsync(
+            Quote.CarNumber, Quote.PayableAmount, token);
+        LastError = result.IsSuccess ? null : result.Error ?? "요금 전광판 표시에 실패했습니다.";
+        return result.IsSuccess;
+    }
+
     public bool CompletePayment(Tparkinfo parkinfo, bool paymentApproved)
     {
         if (_paymentCompleted) return true;
@@ -83,11 +92,11 @@ public sealed class EdgeParkCalSession
         if (_exitCompleted) return true;
         EdgeCallResult<bool> result = _context.IsEventDriven
             ? await _client.CompleteKioskEventAsync(_context.Notification.EventId, token)
-            : await _client.DisplaySettlementCompletedAsync(Quote.CarNumber, token);
+            : await _client.CompleteManualExitAsync(Quote.CarNumber, DateTimeOffset.Now, token);
         _exitCompleted = result.IsSuccess;
         LastError = _exitCompleted
             ? null
-            : result.Error ?? "정산완료 전광판 처리에 실패했습니다.";
+            : result.Error ?? "출차 완료 처리에 실패했습니다.";
         return _exitCompleted;
     }
 }
