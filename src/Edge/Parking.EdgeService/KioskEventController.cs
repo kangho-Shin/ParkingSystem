@@ -94,4 +94,27 @@ public sealed class KioskEventController : ControllerBase
             return NotFound();
         }
     }
+
+    [HttpPost("display/reset")]
+    public async Task<IActionResult> ResetDisplayAsync(
+        [FromBody] KioskDeviceIdentity identity,
+        CancellationToken cancellationToken)
+    {
+        if (identity.Sitenum <= 0 || identity.Groupnum <= 0 || identity.Devicenum <= 0)
+            return BadRequest();
+        try
+        {
+            ParkingDevice kiosk = await _resolver.ResolveAsync(
+                new EdgeDeviceIdentity(
+                    identity.Sitenum, identity.Groupnum, identity.Devicenum, "KIOSK"),
+                cancellationToken);
+            await _coordinator.ResetDisplayAsync(
+                kiosk.DeviceId, identity.Sitenum, cancellationToken);
+            return Ok();
+        }
+        catch (DeviceIdentityException)
+        {
+            return NotFound();
+        }
+    }
 }
