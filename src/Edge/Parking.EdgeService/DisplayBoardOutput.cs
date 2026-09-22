@@ -52,6 +52,26 @@ public sealed class DisplayBoardOutput : IDisplayBoardOutput, IAsyncDisposable
         }
     }
 
+    public async Task SendClockFromDeviceAsync(
+        long sourceDeviceId,
+        long siteId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        SiteConfiguration? configuration = await _configurationStore.GetAsync(
+            siteId, cancellationToken);
+        ParkingDevice? display = configuration is null
+            ? null
+            : DisplayBoardSelector.Find(configuration, sourceDeviceId);
+        if (display is null || string.IsNullOrWhiteSpace(display.IpAddress) || display.Port is null)
+            return;
+
+        DisplayBoardConnection connection = GetConnection(display);
+        await connection.SendAsync(
+            DisplayBoardProtocol.CreateClockLine(now.LocalDateTime), cancellationToken);
+        _clockState.Reset(display.DeviceId);
+    }
+
     public async Task SendAsync(
         LprRecognition recognition,
         FieldEventResponse response,
