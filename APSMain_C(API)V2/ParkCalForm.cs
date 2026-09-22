@@ -360,7 +360,11 @@ namespace APSMain
                     await ImageDownloadHelper.ShowImageAsync(picCarImage, _parkinfo.Inimage);
                 }
 
-                if (_mainForm != null) {
+                if (_edgeSession != null) {
+                    if (!await _edgeSession.DisplayFeeAsync())
+                        XLogClass?.SaveLogString("CAL", _edgeSession.LastError ?? "요금 전광판 표시에 실패했습니다.");
+                }
+                else if (_mainForm != null) {
                     _mainForm.LDMTextDisplay(_ldmNum, 0, 100, $"^W  주차요금 ", $"^G{_parkRemainFee,9} 원");
                 }
             }
@@ -583,7 +587,12 @@ namespace APSMain
                     }
                 }));
 
-                if (_mainForm != null) {
+                if (_edgeSession != null) {
+                    bool displayed = Task.Run(() => _edgeSession.DisplayFeeAsync()).GetAwaiter().GetResult();
+                    if (!displayed)
+                        XLogClass?.SaveLogString("CAL", _edgeSession.LastError ?? "요금 전광판 표시에 실패했습니다.");
+                }
+                else if (_mainForm != null) {
                     _mainForm.LDMTextDisplay(_ldmNum, 0, 100, $"^W 주차요금 ", $"^G{_parkRemainFee,9} 원");
                 }
 
