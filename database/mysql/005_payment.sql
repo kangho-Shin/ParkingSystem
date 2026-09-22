@@ -1,4 +1,4 @@
-ALTER TABLE parking_session ADD COLUMN paydate DATETIME(6) NULL AFTER indate;
+ALTER TABLE parking_session ADD COLUMN paydate DATETIME NULL AFTER indate;
 
 CREATE TABLE IF NOT EXISTS payment
 (
@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS payment
     paymethod VARCHAR(20) NOT NULL,
     approvalnum VARCHAR(50) NOT NULL,
     terminalid VARCHAR(50) NULL,
-    paydate DATETIME(6) NOT NULL,
-    createdat DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    paydate DATETIME NOT NULL,
+    createdat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (paymentid),
     UNIQUE KEY ux_payment_parkindex (parkindex),
     INDEX ix_payment_site_paydate (sitenum, paydate),
