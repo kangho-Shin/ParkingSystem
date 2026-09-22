@@ -71,7 +71,7 @@ JPXLpr / APSMain / Parking.Operator / Parking.EdgeManager
 | `APSMain.EdgeIntegration.Tests` | APSMain Edge 연동 시험 |
 | `JPXLpr.Tests` | LPR 프레임, Outbox, Edge 전송 시험 |
 
-초기 개발용 `Parking.Simulator`, `Parking.KioskSimulator`, `Parking.LprStressTester`는 역할이 끝나 삭제했다.
+초기 개발용 시뮬레이터 3개는 역할이 끝나 삭제했다.
 
 ## 6. 저장소 구분
 
