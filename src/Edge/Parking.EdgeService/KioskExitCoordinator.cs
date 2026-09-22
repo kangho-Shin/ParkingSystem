@@ -143,6 +143,7 @@ public sealed class KioskExitCoordinator : IKioskExitCoordinator
         int groupnum,
         string carNumber,
         string displayMessage,
+        int displaySeconds,
         CancellationToken cancellationToken)
     {
         LprRecognition recognition = new(
@@ -152,7 +153,43 @@ public sealed class KioskExitCoordinator : IKioskExitCoordinator
             recognition.EventId, true, null,
             "KIOSK_SETTLEMENT_COMPLETED", displayMessage, false);
         return _display.SendFromDeviceAsync(
-            kioskDeviceId, recognition, response, cancellationToken);
+            kioskDeviceId, recognition, response, cancellationToken, displaySeconds);
+    }
+
+    public async Task<FieldEventResponse?> CompleteManualAsync(
+        long kioskDeviceId,
+        long siteId,
+        int groupnum,
+        string carNumber,
+        DateTimeOffset exitAt,
+        CancellationToken cancellationToken)
+    {
+        SiteConfiguration? configuration = await _configurationStore.GetAsync(
+            siteId, cancellationToken);
+        ParkingDevice? lpr = configuration is null
+            ? null
+            : DeviceLinkSelector.FindSource(configuration, kioskDeviceId, "KIOSK", "LPR");
+        ParkingLane? lane = lpr?.LaneId is null || configuration is null
+            ? null
+            : configuration.Lanes.FirstOrDefault(x =>
+                x.Enabled && x.LaneId == lpr.LaneId && x.GroupNumber == groupnum &&
+                string.Equals(x.Direction, "Exit", StringComparison.OrdinalIgnoreCase));
+        if (lpr is null || lane is null) return null;
+
+        LprRecognition recognition = new(
+            Guid.NewGuid(), siteId, groupnum, lpr.DeviceId, lane.LaneId,
+            "Exit", exitAt, carNumber, "");
+        FieldEventResponse response = await _events.AcceptExitAsync(
+            ToExitRequest(recognition), cancellationToken);
+        if (!response.Accepted) return response;
+
+        FieldEventResponse displayResponse = response with
+        {
+            DisplayMessage = "정산 완료되었습니다."
+        };
+        await _display.SendFromDeviceAsync(
+            kioskDeviceId, recognition, displayResponse, cancellationToken);
+        return response;
     }
 
     private static ExitEventRequest ToExitRequest(LprRecognition recognition) => new(
