@@ -156,6 +156,13 @@ public sealed class KioskExitCoordinator : IKioskExitCoordinator
             kioskDeviceId, recognition, response, cancellationToken, displaySeconds);
     }
 
+    public Task ResetDisplayAsync(
+        long kioskDeviceId,
+        long siteId,
+        CancellationToken cancellationToken) =>
+        _display.SendClockFromDeviceAsync(
+            kioskDeviceId, siteId, DateTimeOffset.Now, cancellationToken);
+
     public async Task<FieldEventResponse?> CompleteManualAsync(
         long kioskDeviceId,
         long siteId,
