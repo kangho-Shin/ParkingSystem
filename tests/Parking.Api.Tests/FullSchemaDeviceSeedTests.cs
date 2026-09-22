@@ -21,6 +21,10 @@ public sealed class FullSchemaDeviceSeedTests
         Assert.DoesNotContain("(9403,", sql);
         Assert.DoesNotContain("(9404,", sql);
         Assert.Contains("(9001,2,1,0,1,1,30,0,1)", sql);
+        Assert.Contains("(9001,2,10,4,50)", sql);
+        Assert.Contains("(9001,2,20,1,30)", sql);
+        Assert.Contains("(9001,2,30,2,1000)", sql);
+        Assert.Contains("(9001,2,40,3,1000)", sql);
         Assert.Contains("(9001,2,'CMD_KIOSK_OFFLINE_POLICY','OPEN'", sql);
     }
 
