@@ -97,8 +97,10 @@ public sealed class ExitEndpointTests
             EventId = Guid.NewGuid().ToByteArray(),
             CarNumber = carNumber,
             Groupnum = TestGroupnum,
-            EntryAt = paydate.AddMinutes(-120),
-            Paydate = paydate
+            EntryAt = ParkingLocalTime.ToDatabase(
+                new DateTimeOffset(paydate.AddMinutes(-120), TimeSpan.Zero)),
+            Paydate = ParkingLocalTime.ToDatabase(
+                new DateTimeOffset(paydate, TimeSpan.Zero))
         });
 
         await connection.ExecuteAsync("""
@@ -111,7 +113,8 @@ public sealed class ExitEndpointTests
         {
             PaymentId = Guid.NewGuid().ToByteArray(),
             ParkingSessionId = parkingSessionId,
-            Paydate = paydate
+            Paydate = ParkingLocalTime.ToDatabase(
+                new DateTimeOffset(paydate, TimeSpan.Zero))
         });
 
         return (carNumber, paydate);
