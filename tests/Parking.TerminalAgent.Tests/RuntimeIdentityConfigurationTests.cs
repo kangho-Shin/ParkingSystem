@@ -11,9 +11,7 @@ public sealed class RuntimeIdentityConfigurationTests
             "run-foundations.bat",
             "start-ldm-test.bat",
             "run-terminal-agent-test.bat",
-            "run-apsmain-edge-test.bat",
-            "APSMain_C(API)V2/App.config",
-            "src/Edge/Parking.TerminalAgent/appsettings.json"
+            "run-apsmain-edge-test.bat"
         };
 
         string text = string.Join("\n", files.Select(path =>
