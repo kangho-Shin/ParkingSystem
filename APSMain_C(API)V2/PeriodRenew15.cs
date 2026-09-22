@@ -1,8 +1,6 @@
 ﻿using APSMain.BaseClass;
-using APSMain.DbModels;
+using APSMain.Models;
 using APSMain.TTSLib;
-using Dapper;
-using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -435,35 +433,6 @@ namespace APSMain
 
         private void btnSearch_Click(object sender, EventArgs e)
         {
-            //using IDbConnection db = new MySqlConnection(_mainForm!._connstr);
-
-            //string query = "select * from tperiodmember where carnum1=@carnum";
-            //member = db.QueryFirstOrDefault<Tperiodmember>(query, new { carnum = txtCarNum.Text });
-
-            //if (member != null) {
-            //    if (member.Enddate.Month == DateTime.Now.Month) {
-            //        btnPayment.Enabled = true;
-            //        //btnOk.Enabled = true;
-            //        if (APSConfig.isContrast) {
-            //            btnOk.Image = Properties.Resources.confirm_white;
-            //            btnOk.BackColor = Color.FromArgb(17, 17, 17);
-            //            btnOk.ForeColor = Color.White;
-            //        }
-            //        searchok = true; // 서울1가1001
-            //        panInfo.Invalidate();
-            //        //lastIndex = GetEndTabIndex();
-            //        btnOk.Focus();
-            //    }
-            //    else {// "기간연장을 할 수 없습니다.\n관리실에 문의 부탁드립니다.",
-            //        UiHelpers.ShowMessage(this, 14, true);
-            //    }
-            //}
-            //else {
-            //    _mainForm?.PlaySoundFile("error.mp3", AudioRouteState.Dual, 1);
-            //    UiHelpers.ShowMessage(this, 0, true);
-            //    Task.Delay(1000).Wait();
-            //    _mainForm?.PlaySoundFile("incar01.mp3", AudioRouteState.Dual);
-            //}
         }
 
         private void btnPayment_Click(object sender, EventArgs e)

@@ -1,9 +1,7 @@
 ﻿using APSMain.Api.Request;
 using APSMain.Api.Response;
-using APSMain.DbModels;
+using APSMain.Models;
 using APSMain.Tcpip;
-using Dapper;
-using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -260,15 +258,6 @@ namespace APSMain
 
         private void btnExit_Click(object sender, EventArgs e)
         {
-            //string sql = @"SELECT * FROM tparkfee where sitenum=@SiteNum and groupnum=@Groupnum";
-
-            //APSConfig.FeeRules.Clear();
-            //APSConfig.FeeRules = (await _db.QueryAsync<Tparkfee>(sql, new { SiteNum = APSConfig.Sitenum, GroupNum = APSConfig.Groupnum })).ToList();
-
-            //foreach (var r in APSConfig.FeeRules.OrderBy(x => x.Feestep)) {
-            //    Console.WriteLine($"Feestep:{r.Feestep}, Parktime:{r.Parktime}, Parkfee:{r.Parkfee}, Maxcount:{r.Maxcount}, Weektype:{r.Weektype}, Cartype:{r.Cartype}");
-            //}
-
             Close();
         }
 

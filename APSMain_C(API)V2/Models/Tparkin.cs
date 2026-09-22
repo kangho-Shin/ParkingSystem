@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace APSMain.DbModels;
+namespace APSMain.Models;
 
-public partial class Txpark
+public partial class Tparkin
 {
     public int Xindex { get; set; }
 
@@ -23,29 +23,19 @@ public partial class Txpark
 
     public short? Indevicenum { get; set; }
 
-    public DateTime? Indate { get; set; }
+    public DateTime Indate { get; set; }
 
-    public short? Outdevicenum { get; set; }
+    public short Inhour { get; set; }
 
-    public DateTime Outdate { get; set; }
+    public short Inmin { get; set; }
 
     public string? Inimage { get; set; }
 
-    public string? Outimage { get; set; }
+    public string? Parkonplace { get; set; }
 
-    public int? Parktime { get; set; }
-
-    public sbyte? Parkcaltype { get; set; }
-
-    public int? Parkmoney { get; set; }
+    public sbyte? Outflag { get; set; }
 
     public short? Managercode { get; set; }
 
     public string? Managername { get; set; }
-
-    public int? Intick { get; set; }
-
-    public int? Outtick { get; set; }
-
-    public int? Pindex { get; set; }
 }

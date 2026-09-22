@@ -341,12 +341,3 @@ namespace APSMain
         }
     }
 }
-
-
-/*
- *  //_zoom.ApplyZoom(tlpMain,1.0f);
-            CarInNum carInNumForm = new CarInNum();
-
-            carInNumForm.ShowDialog();
- * Scaffold-DbContext "server=192.168.0.21;user=ipims;password=!@Uparkdb1004;database=ipims" Pomelo.EntityFrameworkCore.MySql -OutputDir DbModels -ContextDir DummyContext -NoOnConfiguring -DataAnnotations -Force
- */

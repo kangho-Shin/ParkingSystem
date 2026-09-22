@@ -1,4 +1,4 @@
-using APSMain.DbModels;
+using APSMain.Models;
 
 namespace APSMain.Integration.EdgeService;
 

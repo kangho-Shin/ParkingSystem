@@ -1,8 +1,7 @@
 ﻿using APSMain.BaseClass;
 using APSMain.Comm;
-using APSMain.DbModels;
+using APSMain.Models;
 using APSMain.Smatro;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using NAudio.CoreAudioApi;
 using System;
 using System.Collections.Generic;

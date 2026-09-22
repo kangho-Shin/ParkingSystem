@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace APSMain.DbModels;
+namespace APSMain.Models;
 
-public partial class Tparkfee
+public partial class Tdiscount
 {
     public int Xindex { get; set; }
 
@@ -11,17 +11,13 @@ public partial class Tparkfee
 
     public int? Groupnum { get; set; }
 
-    public int? Weektype { get; set; }
+    public int Key { get; set; }
 
-    public int? Cartype { get; set; }
+    public int? Type { get; set; }
 
-    public int? Dayshift { get; set; }
+    public int? Value { get; set; }
 
-    public int? Feestep { get; set; }
-
-    public int? Parktime { get; set; }
-
-    public int? Parkfee { get; set; }
+    public string? Title { get; set; }
 
     public int? Maxcount { get; set; }
 

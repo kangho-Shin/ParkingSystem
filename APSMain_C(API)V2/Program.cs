@@ -154,37 +154,3 @@ namespace APSMain
         }
     }
 }
-
-
-/*
-    Encoding.GetEncoding("euc-kr")     // OK
-    Encoding.GetEncoding("ks_c_5601-1987") // OK
-    Encoding.GetEncoding(949)         // OK (CP949 = EUC-KR + 확장)
-
-    .Net Core에서는 EUC-KR 인코딩을 사용하려면 CodePagesEncodingProvider를 등록해야 합니다.
-    Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-    Encoding eucKr = Encoding.GetEncoding("euc-kr"); // 또는 "ks_c_5601-1987"도 O
-    Encoding eucKr = Encoding.GetEncoding(949); // 가장 안전하고 호환성 좋음
-
- DataObjects 디렉토리 설정
- Nuget 설치
- Microsoft.EntityFrameworkCore.Tools
- 
- Mysql.Data.EntityFrameworkCore 이건 상용하지 말라고 함
- Mysql.EntityFrameworkCore      이건 에러 발생해서
- 
- 
- Pomelo.EntityFrameworkCore.MySql 이걸로 하라고 함
-
-
-Install-Package Pomelo.EntityFrameworkCore.MySql -Version 7.0.0
-Install-Package Microsoft.EntityFrameworkCore.Tools -Version 7.0.0
-
-Package Manager Console 에서 다음 실행
-
-Scaffold-DbContext "Server=localhost;Database=ipims;User=ipims;Password=!@Uparkdb1004" Pomelo.EntityFrameworkCore.MySql -OutputDir DbModels -f
-
-Add-Migration InitialCreate
-Update-Database
-
- */

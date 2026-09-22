@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace APSMain.DbModels;
+namespace APSMain.Models;
 
-public partial class Tperiodin
+public partial class Tperiodinout
 {
     public int Xindex { get; set; }
 
@@ -29,15 +29,31 @@ public partial class Tperiodin
 
     public string? Inimage { get; set; }
 
+    public short? Outdevicenum { get; set; }
+
+    public DateTime Outdate { get; set; }
+
+    public short? Outhour { get; set; }
+
+    public short? Outmin { get; set; }
+
+    public string? Outimage { get; set; }
+
+    public int? Parktime { get; set; }
+
     public DateTime? Enddate { get; set; }
-
-    public int? Intimetick { get; set; }
-
-    public sbyte? Outflag { get; set; }
-
-    public string? Parkonplace { get; set; }
 
     public short? Managercode { get; set; }
 
     public string? Managername { get; set; }
+
+    public sbyte? Outflag { get; set; }
+
+    public string? Note { get; set; }
+
+    public short? Parktimecode { get; set; }
+
+    public string? Parktimetime { get; set; }
+
+    public string? Backimage { get; set; }
 }

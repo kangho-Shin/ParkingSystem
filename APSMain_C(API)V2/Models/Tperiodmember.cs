@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace APSMain.DbModels;
+namespace APSMain.Models;
 
 public partial class Tperiodmember
 {

@@ -1,9 +1,8 @@
 ﻿using APSMain.BaseClass;
 using APSMain.Comm;
-using APSMain.DbModels;
+using APSMain.Models;
 using APSMain.Tcpip;
 using APSMain.TTSLib;
-using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Configuration;
@@ -12,7 +11,6 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using Dapper;
 using NAudio.Wave;
 using Windows.Media.MediaProperties;
 using APSMain.Api.Request;

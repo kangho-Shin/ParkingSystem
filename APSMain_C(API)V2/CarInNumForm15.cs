@@ -1,11 +1,9 @@
 ﻿using APSMain.Api.Request;
 using APSMain.Api.Response;
 using APSMain.BaseClass;
-using APSMain.DbModels;
+using APSMain.Models;
 using APSMain.Tcpip;
 using APSMain.TTSLib;
-using Dapper;
-using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Data;
