@@ -94,6 +94,24 @@ public sealed class EdgeParkCalSessionTests
         Assert.Contains("\"DisplaySeconds\":100", handler.RequestBody);
     }
 
+    [Fact]
+    public async Task Previous_or_home_resets_display_to_clock()
+    {
+        RecordingHandler handler = new();
+        EdgeServiceClient client = new(
+            new HttpClient(handler) { BaseAddress = new Uri("http://localhost:5200/") },
+            new EdgeServiceOptions(new Uri("http://localhost:5200/"), 9001, 2, 201));
+        EdgeParkCalSession session = new(client, new KioskExitContext(), new FeeQuote());
+
+        bool result = await session.ResetDisplayAsync();
+
+        Assert.True(result);
+        Assert.Equal("api/v1/local/kiosks/display/reset", handler.RequestPath);
+        Assert.Contains("\"Sitenum\":9001", handler.RequestBody);
+        Assert.Contains("\"Groupnum\":2", handler.RequestBody);
+        Assert.Contains("\"Devicenum\":201", handler.RequestBody);
+    }
+
     private sealed class RejectingHandler : HttpMessageHandler
     {
         public int RequestCount { get; private set; }
