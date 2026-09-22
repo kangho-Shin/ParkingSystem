@@ -78,13 +78,13 @@ public sealed class ParkingExitRepository : IParkingExitRepository
         await using MySqlConnection connection = new(_connectionString);
         await connection.ExecuteAsync(new CommandDefinition("""
             UPDATE parking_session
-            SET outflag='X', paydate=@SettledAtUtc
+            SET outflag='X', paydate=@SettledAtLocal
             WHERE xindex=@ParkingSessionId AND outflag='I';
             """,
             new
             {
                 ParkingSessionId = parkingSessionId,
-                SettledAtUtc = settledAt.UtcDateTime
+                SettledAtLocal = ParkingLocalTime.ToDatabase(settledAt)
             },
             cancellationToken: cancellationToken));
     }
@@ -94,9 +94,8 @@ public sealed class ParkingExitRepository : IParkingExitRepository
         if (row is null)
             return null;
 
-        DateTime entryAtUtc = DateTime.SpecifyKind(row.EntryAt, DateTimeKind.Utc);
         DateTimeOffset? paydate = row.Paydate.HasValue
-            ? new DateTimeOffset(DateTime.SpecifyKind(row.Paydate.Value, DateTimeKind.Utc))
+            ? ParkingLocalTime.FromDatabase(row.Paydate.Value)
             : null;
         return new OpenParkingSessionResponse(
             row.ParkingSessionId,
@@ -105,7 +104,7 @@ public sealed class ParkingExitRepository : IParkingExitRepository
             row.Groupnum,
             row.CarType,
             row.EntryLaneId,
-            new DateTimeOffset(entryAtUtc),
+            ParkingLocalTime.FromDatabase(row.EntryAt),
             paydate,
             row.Status);
     }
@@ -127,13 +126,13 @@ public sealed class ParkingExitRepository : IParkingExitRepository
                 INSERT IGNORE INTO parking_event
                 (eventid,sitenum,groupnum,laneid,deviceid,eventtype,carnum,eventat,imagepath)
                 VALUES (@EventId,@SiteId,@Groupnum,@LaneId,@DeviceId,@EventType,
-                        @CarNumber,@OutDateTimeUtc,@OutImage);
+                        @CarNumber,@OutDateTimeLocal,@OutImage);
                 """;
             int inserted = await connection.ExecuteAsync(new CommandDefinition(insertEvent, new
             {
                 EventId = eventId, request.SiteId, request.Groupnum,
                 request.LaneId, request.DeviceId, request.EventType,
-                request.CarNumber, OutDateTimeUtc = request.OutDateTime.UtcDateTime,
+                request.CarNumber, OutDateTimeLocal = ParkingLocalTime.ToDatabase(request.OutDateTime),
                 OutImage = VehicleImageName.FileNameOnly(request.OutImage)
             }, transaction, cancellationToken: cancellationToken));
 
@@ -173,7 +172,7 @@ public sealed class ParkingExitRepository : IParkingExitRepository
             {
                 await connection.ExecuteAsync(new CommandDefinition("""
                     UPDATE parking_session SET outeventid=@EventId, outlaneid=@LaneId,
-                    outdeviceid=@DeviceId, outdate=@OutDateTimeUtc,
+                    outdeviceid=@DeviceId, outdate=@OutDateTimeLocal,
                     outimage=@OutImage, outflag='O'
                     WHERE xindex=@ParkingSessionId;
                     """, new
@@ -181,7 +180,7 @@ public sealed class ParkingExitRepository : IParkingExitRepository
                         EventId = eventId,
                         request.LaneId,
                         request.DeviceId,
-                        OutDateTimeUtc = request.OutDateTime.UtcDateTime,
+                        OutDateTimeLocal = ParkingLocalTime.ToDatabase(request.OutDateTime),
                         OutImage = VehicleImageName.FileNameOnly(request.OutImage),
                         session.ParkingSessionId
                     },
