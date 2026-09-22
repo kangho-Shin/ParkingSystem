@@ -47,7 +47,8 @@ public sealed class KioskEventController : ControllerBase
     {
         if (request.Device is null || request.Device.Sitenum <= 0 || request.Device.Groupnum <= 0 ||
             request.Device.Devicenum <= 0 || string.IsNullOrWhiteSpace(request.CarNumber) ||
-            string.IsNullOrWhiteSpace(request.DisplayMessage))
+            string.IsNullOrWhiteSpace(request.DisplayMessage) ||
+            request.DisplaySeconds is < 1 or > 100)
             return BadRequest();
         try
         {
@@ -58,8 +59,35 @@ public sealed class KioskEventController : ControllerBase
                 cancellationToken);
             await _coordinator.DisplayAsync(
                 kiosk.DeviceId, request.Device.Sitenum, request.Device.Groupnum,
-                request.CarNumber, request.DisplayMessage, cancellationToken);
+                request.CarNumber, request.DisplayMessage,
+                request.DisplaySeconds, cancellationToken);
             return Ok();
+        }
+        catch (DeviceIdentityException)
+        {
+            return NotFound();
+        }
+    }
+
+    [HttpPost("manual-exit/complete")]
+    public async Task<IActionResult> CompleteManualAsync(
+        [FromBody] KioskManualExitRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.Device is null || request.Device.Sitenum <= 0 ||
+            request.Device.Groupnum <= 0 || request.Device.Devicenum <= 0 ||
+            string.IsNullOrWhiteSpace(request.CarNumber))
+            return BadRequest();
+        try
+        {
+            ParkingDevice kiosk = await _resolver.ResolveAsync(
+                new EdgeDeviceIdentity(
+                    request.Device.Sitenum, request.Device.Groupnum,
+                    request.Device.Devicenum, "KIOSK"), cancellationToken);
+            FieldEventResponse? response = await _coordinator.CompleteManualAsync(
+                kiosk.DeviceId, request.Device.Sitenum, request.Device.Groupnum,
+                request.CarNumber, request.ExitAt, cancellationToken);
+            return response is null ? NotFound() : Ok(response);
         }
         catch (DeviceIdentityException)
         {
