@@ -188,6 +188,37 @@ public sealed class EdgeServiceClient
         }
     }
 
+    public async Task<EdgeCallResult<bool>> ResetDisplayAsync(
+        CancellationToken token = default)
+    {
+        string json = JsonConvert.SerializeObject(new
+        {
+            _options.Sitenum,
+            _options.Groupnum,
+            _options.Devicenum
+        });
+        try
+        {
+            using HttpResponseMessage response = await _http.PostAsync(
+                "api/v1/local/kiosks/display/reset",
+                new StringContent(json, Encoding.UTF8, "application/json"), token);
+            return response.IsSuccessStatusCode
+                ? EdgeCallResult<bool>.Success(true)
+                : EdgeCallResult<bool>.Failed(
+                    EdgeCallStatus.Failure,
+                    $"전광판 초기화 응답 오류: {(int)response.StatusCode}");
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        {
+            return EdgeCallResult<bool>.Failed(
+                EdgeCallStatus.TransientFailure, "전광판 초기화 응답 시간이 초과되었습니다.");
+        }
+        catch (HttpRequestException ex)
+        {
+            return EdgeCallResult<bool>.Failed(EdgeCallStatus.TransientFailure, ex.Message);
+        }
+    }
+
     public async Task<EdgeCallResult<FeeQuote>> QuoteSessionAsync(long sessionId, DateTimeOffset exitAt, IReadOnlyList<int> discountKeys, CancellationToken token = default)
     {
         string json = JsonConvert.SerializeObject(new { ParkingSessionId = sessionId, ExitAt = exitAt, DiscountKeys = discountKeys });
