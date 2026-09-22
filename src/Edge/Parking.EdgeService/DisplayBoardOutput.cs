@@ -63,7 +63,8 @@ public sealed class DisplayBoardOutput : IDisplayBoardOutput, IAsyncDisposable
         long sourceDeviceId,
         LprRecognition recognition,
         FieldEventResponse response,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int displaySeconds = 11)
     {
         SiteConfiguration? configuration = await _configurationStore.GetAsync(
             recognition.SiteId, cancellationToken);
@@ -82,14 +83,16 @@ public sealed class DisplayBoardOutput : IDisplayBoardOutput, IAsyncDisposable
         try
         {
             await connection.SendAsync(
-                DisplayBoardProtocol.CreateTwoLine(recognition.CarNumber, response.DisplayMessage),
+                DisplayBoardProtocol.CreateTwoLine(
+                    recognition.CarNumber, response.DisplayMessage, displaySeconds),
                 cancellationToken);
             if (response.OpenBarrier)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
                 await connection.SendAsync(DisplayBoardProtocol.GateOpen.ToArray(), cancellationToken);
             }
-            _clockState.Suppress(display.DeviceId, DateTimeOffset.Now, TimeSpan.FromSeconds(11));
+            _clockState.Suppress(
+                display.DeviceId, DateTimeOffset.Now, TimeSpan.FromSeconds(displaySeconds));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
