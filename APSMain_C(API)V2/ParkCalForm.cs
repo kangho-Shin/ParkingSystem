@@ -1165,6 +1165,7 @@ namespace APSMain
 
         private void btnPre_Click(object sender, EventArgs e)
         {
+            ResetEdgeDisplay();
             if (_parkRemainFee > 0 && btnOk.Enabled == false) {
                 UpdateParkData();  // 결제가 완료되지 않은 경우 이전으로 가기
             }
@@ -1179,6 +1180,7 @@ namespace APSMain
 
         private void btnHome_Click(object sender, EventArgs e)
         {
+            ResetEdgeDisplay();
             if (_parkRemainFee > 0 && btnOk.Enabled == false) {
                 UpdateParkData();     // 결제가 완료되지 않은 경우 홈으로 가기
             }
@@ -1353,6 +1355,7 @@ namespace APSMain
 
         public void OnGoHome()
         {
+            ResetEdgeDisplay();
             if (_parkRemainFee > 0 && btnOk.Enabled == false) {
                 UpdateParkData();     // 결제가 완료되지 않은 경우 이전으로 가기(OnGoHome)
             }
@@ -1360,6 +1363,14 @@ namespace APSMain
             Result = FormResult.FormHome;
             _mainForm!.PlaySoundFile("btnHome1.mp3", AudioRouteState.Dual, 1);
             BeginInvoke((Action)(() => this.Close()));
+        }
+
+        private void ResetEdgeDisplay()
+        {
+            if (_edgeSession == null) return;
+            bool reset = Task.Run(() => _edgeSession.ResetDisplayAsync()).GetAwaiter().GetResult();
+            if (!reset)
+                XLogClass?.SaveLogString("CAL", _edgeSession.LastError ?? "전광판 초기화에 실패했습니다.");
         }
 
         public void DoActiveButton()
