@@ -70,8 +70,9 @@ public sealed class DisplayBoardProtocolTests
     public void 요금표시는_100초_표시시간을_패킷에_기록한다()
     {
         byte[] packet = DisplayBoardProtocol.CreateTwoLine(
-            "12가3456", "주차요금 1,200원", 100);
+            "12가3456", "요금 1,200원", 100);
 
         Assert.Equal(unchecked((byte)(0x30 + 100)), packet[4]);
+        Assert.Equal((byte)'0', packet[21]);
     }
 }
