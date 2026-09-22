@@ -137,6 +137,24 @@ public sealed class KioskExitCoordinator : IKioskExitCoordinator
         }
     }
 
+    public Task DisplayAsync(
+        long kioskDeviceId,
+        long siteId,
+        int groupnum,
+        string carNumber,
+        string displayMessage,
+        CancellationToken cancellationToken)
+    {
+        LprRecognition recognition = new(
+            Guid.NewGuid(), siteId, groupnum, kioskDeviceId, 0,
+            "Exit", DateTimeOffset.Now, carNumber, "");
+        FieldEventResponse response = new(
+            recognition.EventId, true, null,
+            "KIOSK_SETTLEMENT_COMPLETED", displayMessage, false);
+        return _display.SendFromDeviceAsync(
+            kioskDeviceId, recognition, response, cancellationToken);
+    }
+
     private static ExitEventRequest ToExitRequest(LprRecognition recognition) => new(
         recognition.EventId, recognition.SiteId, recognition.LaneId,
         recognition.DeviceId, recognition.CarNumber, recognition.RecognizedAt,
