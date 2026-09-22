@@ -111,6 +111,26 @@ public sealed class EdgeMonitoringFlowTests
         Assert.Equal("UNPAID", activity.ResultCode);
     }
 
+    [Fact]
+    public async Task 다른_EventId의_중앙응답은_Outbox를_완료하지_않는다()
+    {
+        await using TestContext context = await TestContext.CreateAsync();
+        FieldEventRequest entry = CreateEntry();
+        EdgeEventService service = new(
+            context.Outbox,
+            CreateClient(HttpStatusCode.OK,
+                new FieldEventResponse(
+                    Guid.NewGuid(), true, 77, "OK", "입차", true)),
+            context.Monitoring);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.AcceptEntryAsync(entry, CancellationToken.None));
+
+        OutboxMessage pending = Assert.Single(
+            await context.Outbox.GetPendingAsync(10, CancellationToken.None));
+        Assert.Equal(entry.EventId, pending.EventId);
+    }
+
     private static FieldEventRequest CreateEntry() => new(
         Guid.NewGuid(), 1, 10, 101, "12가3456", DateTimeOffset.UtcNow,
         Groupnum: 1, InImage: "in.jpg");

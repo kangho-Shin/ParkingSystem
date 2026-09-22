@@ -45,7 +45,7 @@ public sealed class LprLaneProcessorTests
     }
 
     [Fact]
-    public async Task 미정산출차도_정상처리된패킷이므로_ACK한다()
+    public async Task 중앙에서_거부한_출차는_ResultCode로_NAK한다()
     {
         Guid eventId = Guid.NewGuid();
         FieldEventResponse response = new(eventId, false, null, "UNPAID", "미정산", false);
@@ -56,7 +56,8 @@ public sealed class LprLaneProcessorTests
         LprProcessResult result = await context.Processor.ProcessAsync(
             fileName, CancellationToken.None);
 
-        Assert.True(result.Acknowledged);
+        Assert.False(result.Acknowledged);
+        Assert.Equal("UNPAID", result.ErrorCode);
         Assert.False(result.ParkingResponse!.OpenBarrier);
     }
 

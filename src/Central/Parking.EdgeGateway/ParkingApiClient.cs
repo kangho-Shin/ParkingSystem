@@ -9,16 +9,28 @@ namespace Parking.EdgeGateway
         private readonly HttpClient _httpClient;
         public ParkingApiClient(HttpClient httpClient) { _httpClient = httpClient; }
 
-        public Task<FieldEventResponse> SendAsync(FieldEventRequest request, CancellationToken cancellationToken) =>
-            PostAsync<FieldEventRequest, FieldEventResponse>("api/v1/parking/entries", request, cancellationToken);
+        public async Task<FieldEventResponse> SendAsync(
+            FieldEventRequest request,
+            CancellationToken cancellationToken) =>
+            ValidateEventId(
+                request.EventId,
+                await PostAsync<FieldEventRequest, FieldEventResponse>(
+                    "api/v1/parking/entries", request, cancellationToken));
 
-        public Task<FieldEventResponse> SendExitAsync(ExitEventRequest request, CancellationToken cancellationToken) =>
-            PostAsync<ExitEventRequest, FieldEventResponse>("api/v1/parking/exits", request, cancellationToken);
+        public async Task<FieldEventResponse> SendExitAsync(
+            ExitEventRequest request,
+            CancellationToken cancellationToken) =>
+            ValidateEventId(
+                request.EventId,
+                await PostAsync<ExitEventRequest, FieldEventResponse>(
+                    "api/v1/parking/exits", request, cancellationToken));
 
-        public Task<FieldEventResponse> SendOfflineKioskExitAsync(
+        public async Task<FieldEventResponse> SendOfflineKioskExitAsync(
             OfflineKioskExitRequest request, CancellationToken cancellationToken) =>
-            PostAsync<OfflineKioskExitRequest, FieldEventResponse>(
-                "api/v1/parking/exits/kiosk-offline-open", request, cancellationToken);
+            ValidateEventId(
+                request.EventId,
+                await PostAsync<OfflineKioskExitRequest, FieldEventResponse>(
+                    "api/v1/parking/exits/kiosk-offline-open", request, cancellationToken));
 
         public Task<HttpRelayResponse> RelayFeeQuoteAsync(
             string json,
@@ -130,6 +142,16 @@ namespace Parking.EdgeGateway
             using HttpResponseMessage response = await _httpClient.GetAsync(uri, cancellationToken);
             string responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
             return new HttpRelayResponse((int)response.StatusCode, responseJson);
+        }
+
+        private static FieldEventResponse ValidateEventId(
+            Guid requestEventId,
+            FieldEventResponse response)
+        {
+            if (response.EventId != requestEventId)
+                throw new EventIdMismatchException(
+                    "Parking.Api", requestEventId, response.EventId);
+            return response;
         }
     }
 }

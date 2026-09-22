@@ -14,16 +14,28 @@ namespace Parking.EdgeService
             _bootstrapStore = bootstrapStore;
         }
 
-        public Task<FieldEventResponse> SendEntryAsync(FieldEventRequest request, CancellationToken cancellationToken) =>
-            PostAsync<FieldEventRequest, FieldEventResponse>("api/v1/edge/events", request, cancellationToken);
+        public async Task<FieldEventResponse> SendEntryAsync(
+            FieldEventRequest request,
+            CancellationToken cancellationToken) =>
+            ValidateEventId(
+                request.EventId,
+                await PostAsync<FieldEventRequest, FieldEventResponse>(
+                    "api/v1/edge/events", request, cancellationToken));
 
-        public Task<FieldEventResponse> SendExitAsync(ExitEventRequest request, CancellationToken cancellationToken) =>
-            PostAsync<ExitEventRequest, FieldEventResponse>("api/v1/edge/exits", request, cancellationToken);
+        public async Task<FieldEventResponse> SendExitAsync(
+            ExitEventRequest request,
+            CancellationToken cancellationToken) =>
+            ValidateEventId(
+                request.EventId,
+                await PostAsync<ExitEventRequest, FieldEventResponse>(
+                    "api/v1/edge/exits", request, cancellationToken));
 
-        public Task<FieldEventResponse> SendOfflineKioskExitAsync(
+        public async Task<FieldEventResponse> SendOfflineKioskExitAsync(
             OfflineKioskExitRequest request, CancellationToken cancellationToken) =>
-            PostAsync<OfflineKioskExitRequest, FieldEventResponse>(
-                "api/v1/edge/exits/kiosk-offline-open", request, cancellationToken);
+            ValidateEventId(
+                request.EventId,
+                await PostAsync<OfflineKioskExitRequest, FieldEventResponse>(
+                    "api/v1/edge/exits/kiosk-offline-open", request, cancellationToken));
 
         public Task<HttpRelayResponse> RelayFeeQuoteAsync(
             string json,
@@ -165,6 +177,16 @@ namespace Parking.EdgeService
                 : _httpClient.BaseAddress
                     ?? throw new InvalidOperationException("중앙 서버 주소가 설정되지 않았습니다.");
             return new Uri(baseUri, relativeUri);
+        }
+
+        private static FieldEventResponse ValidateEventId(
+            Guid requestEventId,
+            FieldEventResponse response)
+        {
+            if (response.EventId != requestEventId)
+                throw new EventIdMismatchException(
+                    "Gateway", requestEventId, response.EventId);
+            return response;
         }
     }
 }

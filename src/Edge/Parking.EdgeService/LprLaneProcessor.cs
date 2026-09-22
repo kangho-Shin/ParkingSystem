@@ -109,7 +109,11 @@ public sealed class LprLaneProcessor
                 (recognition.Direction == ParkingEventType.Entry || _kioskExitCoordinator is null))
                 await _displayOutput.SendAsync(recognition, response, cancellationToken);
 
-            return new LprProcessResult(true, recognition.EventId, null, response);
+            return new LprProcessResult(
+                response.Accepted,
+                recognition.EventId,
+                response.Accepted ? null : response.ResultCode,
+                response);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

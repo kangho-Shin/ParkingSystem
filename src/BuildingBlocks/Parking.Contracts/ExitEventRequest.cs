@@ -1,6 +1,9 @@
+using Newtonsoft.Json;
+
 namespace Parking.Contracts;
 
 public sealed record ExitEventRequest(
+    [property: JsonConverter(typeof(GuidNJsonConverter))]
     Guid EventId,
     long SiteId,
     long LaneId,

@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Parking.Contracts;
 using Parking.EdgeService;
 
@@ -23,6 +24,9 @@ public sealed class OfflineKioskOutboxTests
             OutboxMessage message = Assert.Single(
                 await repository.GetPendingAsync(10, CancellationToken.None));
             Assert.Equal("KioskOfflineExit", message.EventType);
+            Assert.Equal(
+                request.EventId.ToString("N"),
+                JObject.Parse(message.PayloadJson).Value<string>("EventId"));
             Assert.Equal(request, JsonConvert.DeserializeObject<OfflineKioskExitRequest>(message.PayloadJson));
         }
         finally

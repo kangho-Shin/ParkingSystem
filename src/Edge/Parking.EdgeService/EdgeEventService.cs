@@ -40,7 +40,10 @@ namespace Parking.EdgeService
                 return response;
             }
             catch (Exception exception) when (
-                exception is HttpRequestException ||
+                exception is HttpRequestException
+                {
+                    StatusCode: null or System.Net.HttpStatusCode.ServiceUnavailable
+                } ||
                 exception is TaskCanceledException)
             {
                 FieldEventResponse response = new(
@@ -86,7 +89,10 @@ namespace Parking.EdgeService
                 return response;
             }
             catch (Exception exception) when (
-                exception is HttpRequestException ||
+                exception is HttpRequestException
+                {
+                    StatusCode: null or System.Net.HttpStatusCode.ServiceUnavailable
+                } ||
                 exception is TaskCanceledException)
             {
                 FieldEventResponse response = new(

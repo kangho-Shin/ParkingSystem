@@ -37,6 +37,10 @@ namespace Parking.EdgeGateway
             long siteId, CancellationToken cancellationToken)
         {
             try { return Ok(await _client.GetSiteConfigurationAsync(siteId, cancellationToken)); }
+            catch (HttpRequestException exception) when (exception.StatusCode.HasValue)
+            {
+                return StatusCode((int)exception.StatusCode.Value);
+            }
             catch (HttpRequestException) { return StatusCode(StatusCodes.Status503ServiceUnavailable); }
             catch (TaskCanceledException) { return StatusCode(StatusCodes.Status503ServiceUnavailable); }
         }
@@ -51,6 +55,10 @@ namespace Parking.EdgeGateway
                 VersionedSiteConfiguration? value = await _client.GetVersionedConfigurationAsync(
                     siteId, Request.Headers["X-Site-Key"].ToString(), cancellationToken);
                 return value is null ? NotFound() : Ok(value);
+            }
+            catch (HttpRequestException exception) when (exception.StatusCode.HasValue)
+            {
+                return StatusCode((int)exception.StatusCode.Value);
             }
             catch (HttpRequestException) { return StatusCode(StatusCodes.Status503ServiceUnavailable); }
             catch (TaskCanceledException) { return StatusCode(StatusCodes.Status503ServiceUnavailable); }
@@ -124,6 +132,14 @@ namespace Parking.EdgeGateway
         private async Task<IActionResult> RelayAsync(Func<Task<FieldEventResponse>> action)
         {
             try { return Ok(await action()); }
+            catch (EventIdMismatchException)
+            {
+                return StatusCode(StatusCodes.Status502BadGateway);
+            }
+            catch (HttpRequestException exception) when (exception.StatusCode.HasValue)
+            {
+                return StatusCode((int)exception.StatusCode.Value);
+            }
             catch (HttpRequestException) { return StatusCode(StatusCodes.Status503ServiceUnavailable); }
             catch (TaskCanceledException) { return StatusCode(StatusCodes.Status503ServiceUnavailable); }
         }
