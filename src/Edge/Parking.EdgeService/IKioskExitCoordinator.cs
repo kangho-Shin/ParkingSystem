@@ -18,6 +18,11 @@ public interface IKioskExitCoordinator
         int displaySeconds,
         CancellationToken cancellationToken);
 
+    Task ResetDisplayAsync(
+        long kioskDeviceId,
+        long siteId,
+        CancellationToken cancellationToken);
+
     Task<FieldEventResponse?> CompleteManualAsync(
         long kioskDeviceId,
         long siteId,
