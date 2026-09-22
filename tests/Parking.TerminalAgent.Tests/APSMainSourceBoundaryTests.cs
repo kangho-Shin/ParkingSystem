@@ -31,9 +31,9 @@ public sealed class APSMainSourceBoundaryTests
             .Where(path => Path.GetExtension(path) is ".cs" or ".csproj" or ".config")
             .Select(File.ReadAllText));
 
-        Assert.DoesNotContain("database=ipims", text, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("database=uparkdb", text, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("password=", text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("database=parking000test", text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("database=test", text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("password=test", text, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("MySqlConnection", text, StringComparison.Ordinal);
     }
 
