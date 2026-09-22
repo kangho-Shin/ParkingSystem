@@ -49,6 +49,12 @@ public sealed class EdgeParkCalSession
     public bool CompletePayment(Tparkinfo parkinfo, bool paymentApproved)
     {
         if (_paymentCompleted) return true;
+        if (Quote.PayableAmount == 0 && Quote.PreviousPaidAmount > 0)
+        {
+            _paymentCompleted = true;
+            LastError = null;
+            return true;
+        }
         if (!paymentApproved) return true;
 
         bool free = Quote.PayableAmount == 0;
