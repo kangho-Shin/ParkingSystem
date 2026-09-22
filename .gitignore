@@ -497,3 +497,6 @@ $RECYCLE.BIN/
 /APSMain_C(API)V2/.github/
 /JPXLpr/.github/
 /Backup
+**/appsettings.json
+**/App.config
+**/app.config
