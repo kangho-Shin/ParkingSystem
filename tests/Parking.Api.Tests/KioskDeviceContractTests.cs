@@ -53,6 +53,7 @@ public sealed class KioskDeviceContractTests
         Assert.Equal(2001, coordinator.DeviceId);
         Assert.Equal("12가3456", coordinator.CarNumber);
         Assert.Equal("정산 완료되었습니다.", coordinator.DisplayMessage);
+        Assert.Equal(11, coordinator.DisplaySeconds);
     }
 
     [Fact]
@@ -104,6 +105,7 @@ public sealed class KioskDeviceContractTests
         public Guid EventId { get; private set; }
         public string? CarNumber { get; private set; }
         public string? DisplayMessage { get; private set; }
+        public int DisplaySeconds { get; private set; }
         public Task<FieldEventResponse?> CompleteAsync(
             long kioskDeviceId, Guid eventId, CancellationToken cancellationToken)
         {
@@ -115,12 +117,23 @@ public sealed class KioskDeviceContractTests
         public Task DisplayAsync(
             long kioskDeviceId, long siteId, int groupnum,
             string carNumber, string displayMessage,
+            int displaySeconds,
             CancellationToken cancellationToken)
         {
             DeviceId = kioskDeviceId;
             CarNumber = carNumber;
             DisplayMessage = displayMessage;
+            DisplaySeconds = displaySeconds;
             return Task.CompletedTask;
+        }
+
+        public Task<FieldEventResponse?> CompleteManualAsync(
+            long kioskDeviceId, long siteId, int groupnum, string carNumber,
+            DateTimeOffset exitAt, CancellationToken cancellationToken)
+        {
+            DeviceId = kioskDeviceId;
+            CarNumber = carNumber;
+            return Task.FromResult(response);
         }
     }
 }
