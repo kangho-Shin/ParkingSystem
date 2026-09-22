@@ -46,7 +46,7 @@ public sealed class SettlementRepository : ISettlementRepository
                 cancellationToken: cancellationToken));
 
         DateTimeOffset? lastPaydate = payment.LastPaydate.HasValue
-            ? new DateTimeOffset(DateTime.SpecifyKind(payment.LastPaydate.Value, DateTimeKind.Utc))
+            ? ParkingLocalTime.FromDatabase(payment.LastPaydate.Value)
             : null;
 
         return new SettlementData(discountKeys.ToList(), payment.PaidAmount, lastPaydate);
