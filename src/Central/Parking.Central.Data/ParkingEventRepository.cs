@@ -1,4 +1,3 @@
-﻿using Newtonsoft.Json;
 using Dapper;
 using MySqlConnector;
 using Parking.Contracts;
@@ -8,7 +7,7 @@ namespace Parking.Central.Data;
 internal sealed class ExistingEntrySessionRow
 {
     public long ParkingSessionId { get; set; }
-    public byte[] EntryEventId { get; set; } = Array.Empty<byte>();
+    public string EntryEventId { get; set; } = "";
     public DateTime InDateTime { get; set; }
     public string OutFlag { get; set; } = "";
 }
@@ -31,72 +30,55 @@ public sealed class ParkingEventRepository : IParkingEventRepository
         await using MySqlTransaction transaction =
             await connection.BeginTransactionAsync(cancellationToken);
 
-        try {
-            byte[] eventId = request.EventId.ToByteArray();
+        try
+        {
+            int inserted = await ParkingEventData.InsertAsync(
+                connection,
+                transaction,
+                request.EventId,
+                request.SiteId,
+                request.Groupnum,
+                request.LaneId,
+                request.DeviceId,
+                request.EventType,
+                request.CarNumber,
+                request.InDateTime,
+                request.InImage,
+                cancellationToken);
 
-            const string insertEventSql = """
-                INSERT IGNORE INTO parking_event
-                (eventid, sitenum, groupnum, laneid, deviceid, eventtype,
-                 carnum, eventat, imagepath)
-                VALUES
-                (@EventId, @SiteId, @Groupnum, @LaneId, @DeviceId, @EventType,
-                 @CarNumber, @InDateTimeLocal, @InImage);
-                """;
+            if (inserted == 0)
+            {
+                FieldEventResponse previous = await ParkingEventData.ReadResponseAsync(
+                    connection, transaction, request.EventId, cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return previous;
+            }
 
-            int inserted = await connection.ExecuteAsync(
-                new CommandDefinition(
-                    insertEventSql,
-                    new
-                    {
-                        EventId = eventId,
-                        request.SiteId,
-                        request.Groupnum,
-                        request.LaneId,
-                        request.DeviceId,
-                        request.EventType,
-                        request.CarNumber,
-                        InDateTimeLocal = ParkingLocalTime.ToDatabase(request.InDateTime),
-                        InImage = VehicleImageName.FileNameOnly(request.InImage)
-                    },
-                    transaction,
-                    cancellationToken: cancellationToken));
-
-            if (inserted == 0) {
-                const string resultSql =
-                    "SELECT resultjson FROM parking_event WHERE eventid=@EventId;";
-
-                string resultJson = await connection.QuerySingleAsync<string>(
-                    new CommandDefinition(
-                        resultSql,
-                        new { EventId = eventId },
+            ExistingEntrySessionRow? existing =
+                await connection.QuerySingleOrDefaultAsync<ExistingEntrySessionRow>(
+                    new CommandDefinition("""
+                        SELECT xindex ParkingSessionId,ineventid EntryEventId,
+                               indate InDateTime,outflag OutFlag
+                        FROM tparkinfo
+                        WHERE sitenum=@SiteId AND groupnum=@Groupnum
+                          AND carnum=@CarNumber AND outflag<>'O'
+                        ORDER BY indate DESC LIMIT 1 FOR UPDATE;
+                        """,
+                        new
+                        {
+                            request.SiteId,
+                            request.Groupnum,
+                            CarNumber = request.CarNumber.Trim()
+                        },
                         transaction,
                         cancellationToken: cancellationToken));
 
-                await transaction.CommitAsync(cancellationToken);
-
-                return JsonConvert.DeserializeObject<FieldEventResponse>(resultJson)
-                       ?? throw new InvalidOperationException("기존 처리결과를 읽지 못했습니다.");
-            }
-
-            ExistingEntrySessionRow? existing = await connection.QuerySingleOrDefaultAsync<ExistingEntrySessionRow>(
-                new CommandDefinition("""
-                    SELECT xindex ParkingSessionId, ineventid EntryEventId,
-                           indate InDateTime, outflag OutFlag
-                    FROM parking_session
-                    WHERE sitenum=@SiteId AND groupnum=@Groupnum
-                      AND carnum=@CarNumber AND outflag<>'O'
-                    ORDER BY indate DESC LIMIT 1 FOR UPDATE;
-                    """,
-                    new { request.SiteId, request.Groupnum, request.CarNumber },
-                    transaction,
-                    cancellationToken: cancellationToken));
-
-            int duplicateEntrySeconds = await connection.QuerySingleOrDefaultAsync<int?>(
-                new CommandDefinition("""
+            int duplicateEntrySeconds =
+                await connection.QuerySingleOrDefaultAsync<int?>(new CommandDefinition("""
                     SELECT CAST(opt AS SIGNED)
                     FROM tparkvariable
                     WHERE sitenum=@SiteId AND groupnum=@Groupnum
-                      AND cmd_type='CMD_DUPLICATE_ENTRY_TIME';
+                      AND cmdtype='CMD_DUPLICATE_ENTRY_TIME' AND useflag=1;
                     """,
                     new { request.SiteId, request.Groupnum },
                     transaction,
@@ -106,75 +88,98 @@ public sealed class ParkingEventRepository : IParkingEventRepository
             {
                 TimeSpan elapsed = ParkingLocalTime.ToDatabase(request.InDateTime) -
                     existing.InDateTime;
-
                 if (elapsed.TotalSeconds <= Math.Max(duplicateEntrySeconds, 0))
                 {
-                    FieldEventResponse duplicateResponse = new(
+                    FieldEventResponse duplicate = new(
                         request.EventId,
                         true,
                         existing.ParkingSessionId,
                         "ENTRY_DUPLICATE",
                         "이미 입차 처리되었습니다.",
                         true);
-                    await SaveResultAsync(
+                    await ParkingEventData.SaveResponseAsync(
                         connection,
                         transaction,
-                        eventId,
-                        duplicateResponse,
+                        request.EventId,
+                        duplicate,
+                        "GENERAL",
                         cancellationToken);
                     await transaction.CommitAsync(cancellationToken);
-                    return duplicateResponse;
+                    return duplicate;
                 }
 
                 await connection.ExecuteAsync(new CommandDefinition(
-                    "DELETE FROM parking_session WHERE xindex=@ParkingSessionId;",
+                    "DELETE FROM tdiscountinfo WHERE pindex=@ParkingSessionId; " +
+                    "DELETE FROM tparkinfo WHERE xindex=@ParkingSessionId;",
                     new { existing.ParkingSessionId },
                     transaction,
                     cancellationToken: cancellationToken));
-                await connection.ExecuteAsync(new CommandDefinition(
-                    "DELETE FROM parking_event WHERE eventid=@EntryEventId;",
-                    new { existing.EntryEventId },
+                await ParkingEventData.IncrementGeneralExitAsync(
+                    connection,
                     transaction,
-                    cancellationToken: cancellationToken));
+                    request.SiteId,
+                    request.Groupnum,
+                    cancellationToken);
             }
             else if (existing is not null && existing.OutFlag == "X")
             {
                 await connection.ExecuteAsync(new CommandDefinition("""
-                    UPDATE parking_session SET outflag='O'
+                    UPDATE tparkinfo
+                    SET outflag='O',outdate=@OutDate
                     WHERE xindex=@ParkingSessionId;
                     """,
-                    new { existing.ParkingSessionId },
+                    new
+                    {
+                        existing.ParkingSessionId,
+                        OutDate = ParkingLocalTime.ToDatabase(request.InDateTime)
+                    },
                     transaction,
                     cancellationToken: cancellationToken));
+                await ParkingEventData.IncrementGeneralExitAsync(
+                    connection,
+                    transaction,
+                    request.SiteId,
+                    request.Groupnum,
+                    cancellationToken);
             }
 
-            const string insertSessionSql = """
-                INSERT INTO parking_session
-                (sitenum, ineventid, carnum, groupnum, cartype, inlaneid,
-                 indeviceid, indate, inimage, outflag)
-                VALUES
-                (@SiteId, @EventId, @CarNumber, @Groupnum, 1, @LaneId,
-                 @DeviceId, @InDateTimeLocal, @InImage, 'I');
-
-                SELECT LAST_INSERT_ID();
-                """;
-
+            int deviceNumber = await ParkingEventData.GetDeviceNumberAsync(
+                connection,
+                transaction,
+                request.SiteId,
+                request.Groupnum,
+                request.DeviceId,
+                cancellationToken);
             long parkingSessionId = await connection.ExecuteScalarAsync<long>(
-                new CommandDefinition(
-                    insertSessionSql,
+                new CommandDefinition("""
+                    INSERT INTO tparkinfo
+                    (sitenum,groupnum,ineventid,carnum,cartype,inlaneid,
+                     indevicenum,indate,inimage,outflag)
+                    VALUES
+                    (@SiteId,@Groupnum,@EventId,@CarNumber,1,@LaneId,
+                     @DeviceNumber,@InDate,@InImage,'I');
+                    SELECT LAST_INSERT_ID();
+                    """,
                     new
                     {
                         request.SiteId,
-                        EventId = eventId,
-                        request.CarNumber,
                         request.Groupnum,
+                        EventId = ParkingEventData.EventId(request.EventId),
+                        CarNumber = request.CarNumber.Trim(),
                         request.LaneId,
-                        request.DeviceId,
-                        InDateTimeLocal = ParkingLocalTime.ToDatabase(request.InDateTime),
+                        DeviceNumber = deviceNumber,
+                        InDate = ParkingLocalTime.ToDatabase(request.InDateTime),
                         InImage = VehicleImageName.FileNameOnly(request.InImage)
                     },
                     transaction,
                     cancellationToken: cancellationToken));
+
+            await ParkingEventData.IncrementGeneralEntryAsync(
+                connection,
+                transaction,
+                request.SiteId,
+                request.Groupnum,
+                cancellationToken);
 
             FieldEventResponse response = new(
                 request.EventId,
@@ -183,39 +188,20 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                 "ENTRY_ACCEPTED",
                 "입차되었습니다.",
                 true);
-
-            await SaveResultAsync(
+            await ParkingEventData.SaveResponseAsync(
                 connection,
                 transaction,
-                eventId,
+                request.EventId,
                 response,
+                "GENERAL",
                 cancellationToken);
-
             await transaction.CommitAsync(cancellationToken);
             return response;
         }
-        catch {
+        catch
+        {
             await transaction.RollbackAsync(cancellationToken);
             throw;
         }
     }
-
-    private static Task<int> SaveResultAsync(
-        MySqlConnection connection,
-        MySqlTransaction transaction,
-        byte[] eventId,
-        FieldEventResponse response,
-        CancellationToken cancellationToken) =>
-        connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE parking_event
-            SET resultjson=@ResultJson
-            WHERE eventid=@EventId;
-            """,
-            new
-            {
-                EventId = eventId,
-                ResultJson = JsonConvert.SerializeObject(response)
-            },
-            transaction,
-            cancellationToken: cancellationToken));
 }

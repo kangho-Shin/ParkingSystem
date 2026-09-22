@@ -35,7 +35,7 @@ public sealed class Tparkvariable
 {
     [JsonProperty("sitenum")] public int Sitenum { get; set; }
     [JsonProperty("groupnum")] public int Groupnum { get; set; }
-    [JsonProperty("cmd_type")] public string Cmd_type { get; set; } = "";
+    [JsonProperty("cmdtype")] public string Cmdtype { get; set; } = "";
     [JsonProperty("val")] public string? Val { get; set; }
     [JsonProperty("opt")] public string? Opt { get; set; }
     [JsonProperty("msg")] public string? Msg { get; set; }

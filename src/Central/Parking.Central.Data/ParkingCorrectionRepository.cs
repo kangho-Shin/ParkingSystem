@@ -12,7 +12,7 @@ public sealed class ParkingCorrectionRepository : IParkingCorrectionRepository
     public async Task<CorrectCarNumberResponse> CorrectCarNumberAsync(long parkingSessionId, string carNumber, CancellationToken cancellationToken)
     {
         string normalized = carNumber.Trim();
-        const string sql = "UPDATE parking_session SET carnum=@CarNumber WHERE xindex=@ParkingSessionId AND outflag<>'O';";
+        const string sql = "UPDATE tparkinfo SET carnum=@CarNumber WHERE xindex=@ParkingSessionId AND outflag<>'O';";
         await using MySqlConnection connection = new(_connectionString);
         int affected = await connection.ExecuteAsync(new CommandDefinition(sql, new { ParkingSessionId = parkingSessionId, CarNumber = normalized }, cancellationToken: cancellationToken));
         return affected == 1

@@ -1,6 +1,5 @@
 using Dapper;
 using MySqlConnector;
-using Newtonsoft.Json;
 using Parking.Contracts;
 
 namespace Parking.Central.Data;
@@ -22,38 +21,37 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
         CancellationToken cancellationToken)
     {
         await using MySqlConnection connection = new(_connectionString);
-        PeriodMemberRow? row = await connection.QueryFirstOrDefaultAsync<PeriodMemberRow>(new CommandDefinition("""
-            SELECT xindex MemberId, sitenum SiteId, @Groupnum Groupnum,
-                   cardid CardId, COALESCE(name,'') Name,
-                   CASE WHEN carnum1=@CarNumber THEN carnum1 ELSE carnum2 END CarNumber,
-                   CASE WHEN carnum1=@CarNumber THEN cartype1 ELSE cartype2 END CarType,
-                   enddate EndDate
-            FROM tperiodmember
-            WHERE sitenum=@SiteId AND useflag<>0
-              AND (carnum1=@CarNumber OR carnum2=@CarNumber)
-              AND (startdate IS NULL OR startdate<=@CheckDate)
-              AND (enddate IS NULL OR enddate>=@CheckDate)
-              AND (groupnum=@Groupnum OR SUBSTRING(COALESCE(parkarea,''),@Groupnum,1)='1')
-            ORDER BY enddate DESC, xindex DESC
-            LIMIT 1;
-            """,
-            new
-            {
-                SiteId = siteId,
-                Groupnum = groupnum,
-                CarNumber = carNumber.Trim(),
-                CheckDate = at.Date
-            },
-            cancellationToken: cancellationToken));
-        return row is null ? null : new PeriodMember(
-            row.MemberId,
-            row.SiteId,
-            checked((int)row.Groupnum),
-            row.CardId,
-            row.Name,
-            row.CarNumber,
-            row.CarType,
-            row.EndDate);
+        PeriodMemberRow? row = await connection.QueryFirstOrDefaultAsync<PeriodMemberRow>(
+            new CommandDefinition("""
+                SELECT xindex MemberId,sitenum SiteId,@Groupnum Groupnum,
+                       cardno CardNumber,name Name,carnum1 CarNumber,
+                       cartype1 CarType,enddate EndDate
+                FROM tperiodmember
+                WHERE sitenum=@SiteId AND useflag=1 AND carnum1=@CarNumber
+                  AND startdate<=@CheckDate AND enddate>=@CheckDate
+                  AND (groupnum=@Groupnum OR SUBSTRING(parkarea,@Groupnum,1)='1')
+                ORDER BY enddate DESC,xindex DESC
+                LIMIT 1;
+                """,
+                new
+                {
+                    SiteId = siteId,
+                    Groupnum = groupnum,
+                    CarNumber = carNumber.Trim(),
+                    CheckDate = at.Date
+                },
+                cancellationToken: cancellationToken));
+        return row is null
+            ? null
+            : new PeriodMember(
+                row.MemberId,
+                row.SiteId,
+                checked((int)row.Groupnum),
+                row.CardNumber,
+                row.Name,
+                row.CarNumber,
+                row.CarType,
+                row.EndDate);
     }
 
     public async Task<FieldEventResponse> SaveEntryAsync(
@@ -63,83 +61,116 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
     {
         await using MySqlConnection connection = new(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        await using MySqlTransaction transaction = await connection.BeginTransactionAsync(cancellationToken);
-        byte[] eventId = request.EventId.ToByteArray();
+        await using MySqlTransaction transaction =
+            await connection.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            int inserted = await connection.ExecuteAsync(new CommandDefinition("""
-                INSERT IGNORE INTO parking_event
-                (eventid,sitenum,groupnum,laneid,deviceid,eventtype,carnum,eventat,imagepath)
-                VALUES
-                (@EventId,@SiteId,@Groupnum,@LaneId,@DeviceId,@EventType,
-                 @CarNumber,@InDateTimeLocal,@InImage);
-                """, new
-            {
-                EventId = eventId,
-                request.SiteId,
-                request.Groupnum,
-                request.LaneId,
-                request.DeviceId,
-                request.EventType,
-                request.CarNumber,
-                InDateTimeLocal = ParkingLocalTime.ToDatabase(request.InDateTime),
-                InImage = VehicleImageName.FileNameOnly(request.InImage)
-            }, transaction, cancellationToken: cancellationToken));
-
+            int inserted = await ParkingEventData.InsertAsync(
+                connection, transaction, request.EventId, request.SiteId,
+                request.Groupnum, request.LaneId, request.DeviceId,
+                request.EventType, request.CarNumber, request.InDateTime,
+                request.InImage, cancellationToken);
             if (inserted == 0)
             {
-                string resultJson = await connection.QuerySingleAsync<string>(new CommandDefinition(
-                    "SELECT resultjson FROM parking_event WHERE eventid=@EventId;",
-                    new { EventId = eventId }, transaction, cancellationToken: cancellationToken));
+                FieldEventResponse previous = await ParkingEventData.ReadResponseAsync(
+                    connection, transaction, request.EventId, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
-                return JsonConvert.DeserializeObject<FieldEventResponse>(resultJson)
-                    ?? throw new InvalidOperationException("기존 등록차량 입차결과를 읽지 못했습니다.");
+                return previous;
             }
 
-            long? existingId = await connection.QuerySingleOrDefaultAsync<long?>(new CommandDefinition("""
-                SELECT xindex FROM tperiodinout
-                WHERE sitenum=@SiteId AND groupnum=@Groupnum
-                  AND carnum=@CarNumber AND outflag<>'O'
-                ORDER BY indatetime DESC LIMIT 1 FOR UPDATE;
-                """, new { request.SiteId, request.Groupnum, request.CarNumber },
-                transaction, cancellationToken: cancellationToken));
+            int deviceNumber = await ParkingEventData.GetDeviceNumberAsync(
+                connection, transaction, request.SiteId, request.Groupnum,
+                request.DeviceId, cancellationToken);
+            long? existingId = await connection.QuerySingleOrDefaultAsync<long?>(
+                new CommandDefinition("""
+                    SELECT xindex FROM tperiodinout
+                    WHERE sitenum=@SiteId AND groupnum=@Groupnum
+                      AND carnum=@CarNumber AND outflag='I'
+                    ORDER BY indate DESC LIMIT 1 FOR UPDATE;
+                    """,
+                    new
+                    {
+                        request.SiteId,
+                        request.Groupnum,
+                        CarNumber = request.CarNumber.Trim()
+                    },
+                    transaction,
+                    cancellationToken: cancellationToken));
 
-            long periodSessionId = existingId ?? await connection.ExecuteScalarAsync<long>(
+            if (existingId.HasValue)
+            {
+                await connection.ExecuteAsync(new CommandDefinition("""
+                    UPDATE tperiodinout
+                    SET outdate=@OutDate,outlaneid=@LaneId,
+                        outdevicenum=@DeviceNumber,outimage=@OutImage,
+                        parktime=GREATEST(TIMESTAMPDIFF(MINUTE,indate,@OutDate),0),
+                        outflag='O',note='DUPLICATE_ENTRY'
+                    WHERE xindex=@PeriodSessionId;
+                    """,
+                    new
+                    {
+                        PeriodSessionId = existingId.Value,
+                        OutDate = ParkingLocalTime.ToDatabase(request.InDateTime),
+                        request.LaneId,
+                        DeviceNumber = deviceNumber,
+                        OutImage = VehicleImageName.FileNameOnly(request.InImage)
+                    },
+                    transaction,
+                    cancellationToken: cancellationToken));
+                await ParkingEventData.IncrementPeriodExitAsync(
+                    connection, transaction, request.SiteId, request.Groupnum,
+                    cancellationToken);
+            }
+
+            long periodSessionId = await connection.ExecuteScalarAsync<long>(
                 new CommandDefinition("""
                     INSERT INTO tperiodinout
-                    (sitenum,groupnum,memberindex,cardid,name,carnum,cartype,
-                     ineventid,inlaneid,indeviceid,indatetime,inimage,enddate,outflag)
+                    (periodindex,sitenum,groupnum,ineventid,cardno,name,enddate,
+                     carnum,cartype,inlaneid,indevicenum,indate,inimage,outflag)
                     VALUES
-                    (@SiteId,@Groupnum,@MemberId,@CardId,@Name,@CarNumber,@CarType,
-                     @EventId,@LaneId,@DeviceId,@InDateTimeLocal,@InImage,@EndDate,'I');
+                    (@MemberId,@SiteId,@Groupnum,@EventId,@CardNumber,@Name,@EndDate,
+                     @CarNumber,@CarType,@LaneId,@DeviceNumber,@InDate,@InImage,'I');
                     SELECT LAST_INSERT_ID();
-                    """, new
-                {
-                    request.SiteId,
-                    request.Groupnum,
-                    member.MemberId,
-                    member.CardId,
-                    member.Name,
-                    request.CarNumber,
-                    member.CarType,
-                    EventId = eventId,
-                    request.LaneId,
-                    request.DeviceId,
-                    InDateTimeLocal = ParkingLocalTime.ToDatabase(request.InDateTime),
-                    InImage = VehicleImageName.FileNameOnly(request.InImage),
-                    member.EndDate
-                }, transaction, cancellationToken: cancellationToken));
+                    """,
+                    new
+                    {
+                        member.MemberId,
+                        request.SiteId,
+                        request.Groupnum,
+                        EventId = ParkingEventData.EventId(request.EventId),
+                        member.CardNumber,
+                        member.Name,
+                        member.EndDate,
+                        CarNumber = request.CarNumber.Trim(),
+                        member.CarType,
+                        request.LaneId,
+                        DeviceNumber = deviceNumber,
+                        InDate = ParkingLocalTime.ToDatabase(request.InDateTime),
+                        InImage = VehicleImageName.FileNameOnly(request.InImage)
+                    },
+                    transaction,
+                    cancellationToken: cancellationToken));
 
             await connection.ExecuteAsync(new CommandDefinition(
                 "UPDATE tperiodmember SET outflag='I' WHERE xindex=@MemberId;",
-                new { member.MemberId }, transaction, cancellationToken: cancellationToken));
+                new { member.MemberId },
+                transaction,
+                cancellationToken: cancellationToken));
+            await ParkingEventData.IncrementPeriodEntryAsync(
+                connection, transaction, request.SiteId, request.Groupnum,
+                cancellationToken);
 
             FieldEventResponse response = new(
-                request.EventId, true, periodSessionId,
+                request.EventId,
+                true,
+                periodSessionId,
                 existingId.HasValue ? "PERIOD_ENTRY_DUPLICATE" : "PERIOD_ENTRY_ACCEPTED",
-                "등록차량 입차가 처리되었습니다.", true);
-            await SaveResultAsync(connection, transaction, eventId, response, cancellationToken);
+                "등록차량 입차가 처리되었습니다.",
+                true);
+            await ParkingEventData.SaveResponseAsync(
+                connection, transaction, request.EventId, response, "PERIOD",
+                cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return response;
         }
@@ -159,24 +190,32 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
         await using MySqlConnection connection = new(_connectionString);
         PeriodSessionRow? row = await connection.QueryFirstOrDefaultAsync<PeriodSessionRow>(
             new CommandDefinition("""
-                SELECT xindex PeriodSessionId, memberindex MemberId, sitenum SiteId,
-                       groupnum Groupnum, carnum CarNumber, indatetime InDateTime,
-                       inimage InImage, outflag OutFlag
+                SELECT xindex PeriodSessionId,periodindex MemberId,sitenum SiteId,
+                       groupnum Groupnum,carnum CarNumber,indate InDateTime,
+                       inimage InImage,outflag OutFlag
                 FROM tperiodinout
                 WHERE sitenum=@SiteId AND groupnum=@Groupnum
-                  AND carnum=@CarNumber AND outflag<>'O'
-                ORDER BY indatetime DESC LIMIT 1;
-                """, new { SiteId = siteId, Groupnum = groupnum, CarNumber = carNumber.Trim() },
+                  AND carnum=@CarNumber AND outflag='I'
+                ORDER BY indate DESC LIMIT 1;
+                """,
+                new
+                {
+                    SiteId = siteId,
+                    Groupnum = groupnum,
+                    CarNumber = carNumber.Trim()
+                },
                 cancellationToken: cancellationToken));
-        return row is null ? null : new OpenPeriodSession(
-            row.PeriodSessionId,
-            row.MemberId,
-            row.SiteId,
-            row.Groupnum,
-            row.CarNumber,
-            ParkingLocalTime.FromDatabase(row.InDateTime),
-            row.InImage,
-            row.OutFlag);
+        return row is null
+            ? null
+            : new OpenPeriodSession(
+                row.PeriodSessionId,
+                row.MemberId,
+                row.SiteId,
+                row.Groupnum,
+                row.CarNumber,
+                ParkingLocalTime.FromDatabase(row.InDateTime),
+                row.InImage,
+                row.OutFlag);
     }
 
     public async Task<FieldEventResponse> SaveExitAsync(
@@ -186,64 +225,80 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
     {
         await using MySqlConnection connection = new(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        await using MySqlTransaction transaction = await connection.BeginTransactionAsync(cancellationToken);
-        byte[] eventId = request.EventId.ToByteArray();
+        await using MySqlTransaction transaction =
+            await connection.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            int inserted = await connection.ExecuteAsync(new CommandDefinition("""
-                INSERT IGNORE INTO parking_event
-                (eventid,sitenum,groupnum,laneid,deviceid,eventtype,carnum,eventat,imagepath)
-                VALUES
-                (@EventId,@SiteId,@Groupnum,@LaneId,@DeviceId,@EventType,
-                 @CarNumber,@OutDateTimeLocal,@OutImage);
-                """, new
-            {
-                EventId = eventId,
-                request.SiteId,
-                request.Groupnum,
-                request.LaneId,
-                request.DeviceId,
-                request.EventType,
-                request.CarNumber,
-                OutDateTimeLocal = ParkingLocalTime.ToDatabase(request.OutDateTime),
-                OutImage = VehicleImageName.FileNameOnly(request.OutImage)
-            }, transaction, cancellationToken: cancellationToken));
-
+            int inserted = await ParkingEventData.InsertAsync(
+                connection, transaction, request.EventId, request.SiteId,
+                request.Groupnum, request.LaneId, request.DeviceId,
+                request.EventType, request.CarNumber, request.OutDateTime,
+                request.OutImage, cancellationToken);
             if (inserted == 0)
             {
-                string resultJson = await connection.QuerySingleAsync<string>(new CommandDefinition(
-                    "SELECT resultjson FROM parking_event WHERE eventid=@EventId;",
-                    new { EventId = eventId }, transaction, cancellationToken: cancellationToken));
+                FieldEventResponse previous = await ParkingEventData.ReadResponseAsync(
+                    connection, transaction, request.EventId, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
-                return JsonConvert.DeserializeObject<FieldEventResponse>(resultJson)
-                    ?? throw new InvalidOperationException("기존 등록차량 출차결과를 읽지 못했습니다.");
+                return previous;
             }
 
-            await connection.ExecuteAsync(new CommandDefinition("""
+            int deviceNumber = await ParkingEventData.GetDeviceNumberAsync(
+                connection, transaction, request.SiteId, request.Groupnum,
+                request.DeviceId, cancellationToken);
+            int affected = await connection.ExecuteAsync(new CommandDefinition("""
                 UPDATE tperiodinout
-                SET outeventid=@EventId, outlaneid=@LaneId, outdeviceid=@DeviceId,
-                    outdatetime=@OutDateTimeLocal, outimage=@OutImage,
-                    parktime=GREATEST(TIMESTAMPDIFF(MINUTE,indatetime,@OutDateTimeLocal),0),
+                SET outeventid=@EventId,outlaneid=@LaneId,
+                    outdevicenum=@DeviceNumber,outdate=@OutDate,outimage=@OutImage,
+                    parktime=GREATEST(TIMESTAMPDIFF(MINUTE,indate,@OutDate),0),
                     outflag='O'
-                WHERE xindex=@PeriodSessionId AND outflag<>'O';
-                """, new
+                WHERE xindex=@PeriodSessionId AND outflag='I';
+                """,
+                new
+                {
+                    EventId = ParkingEventData.EventId(request.EventId),
+                    request.LaneId,
+                    DeviceNumber = deviceNumber,
+                    OutDate = ParkingLocalTime.ToDatabase(request.OutDateTime),
+                    OutImage = VehicleImageName.FileNameOnly(request.OutImage),
+                    session.PeriodSessionId
+                },
+                transaction,
+                cancellationToken: cancellationToken));
+            if (affected == 0)
             {
-                EventId = eventId,
-                request.LaneId,
-                request.DeviceId,
-                OutDateTimeLocal = ParkingLocalTime.ToDatabase(request.OutDateTime),
-                OutImage = VehicleImageName.FileNameOnly(request.OutImage),
-                session.PeriodSessionId
-            }, transaction, cancellationToken: cancellationToken));
+                FieldEventResponse rejected = new(
+                    request.EventId,
+                    false,
+                    session.PeriodSessionId,
+                    "PERIOD_SESSION_NOT_OPEN",
+                    "이미 출차된 등록차량입니다.",
+                    false);
+                await ParkingEventData.SaveResponseAsync(
+                    connection, transaction, request.EventId, rejected, "PERIOD",
+                    cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return rejected;
+            }
             await connection.ExecuteAsync(new CommandDefinition(
                 "UPDATE tperiodmember SET outflag='O' WHERE xindex=@MemberId;",
-                new { session.MemberId }, transaction, cancellationToken: cancellationToken));
+                new { session.MemberId },
+                transaction,
+                cancellationToken: cancellationToken));
+            await ParkingEventData.IncrementPeriodExitAsync(
+                connection, transaction, request.SiteId, request.Groupnum,
+                cancellationToken);
 
             FieldEventResponse response = new(
-                request.EventId, true, session.PeriodSessionId,
-                "PERIOD_EXIT_ACCEPTED", "등록차량 출차가 처리되었습니다.", true);
-            await SaveResultAsync(connection, transaction, eventId, response, cancellationToken);
+                request.EventId,
+                true,
+                session.PeriodSessionId,
+                "PERIOD_EXIT_ACCEPTED",
+                "등록차량 출차가 처리되었습니다.",
+                true);
+            await ParkingEventData.SaveResponseAsync(
+                connection, transaction, request.EventId, response, "PERIOD",
+                cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return response;
         }
@@ -253,20 +308,6 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
             throw;
         }
     }
-
-    private static Task<int> SaveResultAsync(
-        MySqlConnection connection,
-        MySqlTransaction transaction,
-        byte[] eventId,
-        FieldEventResponse response,
-        CancellationToken cancellationToken) =>
-        connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE parking_event SET resultjson=@ResultJson WHERE eventid=@EventId;
-            """, new
-        {
-            EventId = eventId,
-            ResultJson = JsonConvert.SerializeObject(response)
-        }, transaction, cancellationToken: cancellationToken));
 
     private sealed class PeriodSessionRow
     {
@@ -285,10 +326,10 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
         public long MemberId { get; set; }
         public long SiteId { get; set; }
         public long Groupnum { get; set; }
-        public long CardId { get; set; }
+        public long CardNumber { get; set; }
         public string Name { get; set; } = "";
         public string CarNumber { get; set; } = "";
-        public string CarType { get; set; } = "";
+        public int CarType { get; set; }
         public DateTime? EndDate { get; set; }
     }
 }

@@ -47,11 +47,11 @@ public sealed class PeriodMemberManagementEndpointTests
         Assert.NotNull(created);
         Assert.True(created.MemberId > 0);
         Assert.Equal("12가3456", created.CarNumber1);
-        Assert.Equal((short)1, created.UseFlag);
+        Assert.Equal(1, created.UseFlag);
 
         List<PeriodMemberDetail>? members = await client.GetFromJsonAsync<
             List<PeriodMemberDetail>>(
-            "/api/v1/period/members?siteId=1&groupnum=1&carNumber=3456");
+            "/api/v1/period/members?siteId=9001&groupnum=2&carNumber=3456");
         Assert.NotNull(members);
         Assert.Contains(members, member => member.MemberId == created.MemberId);
 
@@ -64,29 +64,30 @@ public sealed class PeriodMemberManagementEndpointTests
         PeriodMemberDetail? updated = await client.GetFromJsonAsync<PeriodMemberDetail>(
             $"/api/v1/period/members/{created.MemberId}");
         Assert.NotNull(updated);
-        Assert.Equal((short)0, updated.UseFlag);
+        Assert.Equal(0, updated.UseFlag);
         Assert.Equal("사용중지회원", updated.Name);
 
         HttpResponseMessage deleteResponse = await client.DeleteAsync(
             $"/api/v1/period/members/{created.MemberId}");
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
 
-        HttpResponseMessage deletedResponse = await client.GetAsync(
+        PeriodMemberDetail? deleted = await client.GetFromJsonAsync<PeriodMemberDetail>(
             $"/api/v1/period/members/{created.MemberId}");
-        Assert.Equal(HttpStatusCode.NotFound, deletedResponse.StatusCode);
+        Assert.NotNull(deleted);
+        Assert.Equal(0, deleted.UseFlag);
     }
 
     private static PeriodMemberSaveRequest CreateRequest() => new()
     {
-        SiteId = 1,
-        Groupnum = 1,
-        CardId = 100,
+        SiteId = 9001,
+        Groupnum = 2,
+        CardNumber = 100,
         Name = "등록회원",
         CarNumber1 = "12가3456",
-        CarType1 = "승용",
+        CarType1 = 1,
         StartDate = DateTime.Today,
         EndDate = DateTime.Today.AddMonths(1),
-        ParkArea = "10000000",
+        ParkArea = "0100000",
         UseFlag = 1,
         OutFlag = "O"
     };
@@ -94,7 +95,7 @@ public sealed class PeriodMemberManagementEndpointTests
     private static async Task ClearAsync()
     {
         await using MySqlConnection connection = new(ConnectionString);
-        await connection.ExecuteAsync("DELETE FROM tperiodmember;");
+        await connection.ExecuteAsync("DELETE FROM tperiodinout; DELETE FROM tperiodmember;");
     }
 
     private sealed class TestApplication : WebApplicationFactory<global::Parking.Api.Program>

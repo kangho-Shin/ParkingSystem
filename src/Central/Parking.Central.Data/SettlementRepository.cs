@@ -27,20 +27,20 @@ public sealed class SettlementRepository : ISettlementRepository
 
         IEnumerable<int> discountKeys = await connection.QueryAsync<int>(
             new CommandDefinition("""
-                SELECT DISTINCT discountkey
-                FROM parking_session_discount
-                WHERE parkindex=@ParkingSessionId
-                ORDER BY discountkey;
+                SELECT DISTINCT diskey
+                FROM tdiscountinfo
+                WHERE pindex=@ParkingSessionId
+                ORDER BY diskey;
                 """,
                 new { ParkingSessionId = parkingSessionId },
                 cancellationToken: cancellationToken));
 
         PaymentSummaryRow payment = await connection.QuerySingleAsync<PaymentSummaryRow>(
             new CommandDefinition("""
-                SELECT COALESCE(SUM(payamount),0) PaidAmount,
-                       MAX(paydate) LastPaydate
-                FROM payment
-                WHERE parkindex=@ParkingSessionId;
+                SELECT COALESCE(SUM(money),0) PaidAmount,
+                       MAX(dealdate) LastPaydate
+                FROM tbcardinfo
+                WHERE pindex=@ParkingSessionId;
                 """,
                 new { ParkingSessionId = parkingSessionId },
                 cancellationToken: cancellationToken));

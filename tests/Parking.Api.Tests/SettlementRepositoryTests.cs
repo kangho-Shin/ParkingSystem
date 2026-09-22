@@ -17,35 +17,37 @@ public sealed class SettlementRepositoryTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         long parkingSessionId = await connection.ExecuteScalarAsync<long>("""
-            INSERT INTO parking_session
-            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,outflag)
-            VALUES (9001,@EventId,@CarNumber,2,1,9010,UTC_TIMESTAMP(6),'X');
+            INSERT INTO tparkinfo
+            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indevicenum,indate,outflag)
+            VALUES (9001,@EventId,@CarNumber,2,1,9010,401,UTC_TIMESTAMP(),'X');
             SELECT LAST_INSERT_ID();
             """, new
         {
-            EventId = Guid.NewGuid().ToByteArray(),
+            EventId = Guid.NewGuid().ToString("N"),
             CarNumber = $"TEST{Guid.NewGuid():N}"[..20]
         });
 
         await connection.ExecuteAsync("""
-            INSERT INTO parking_session_discount
-            (parkindex,carnum,discountkey,source,sourceref,discounttype,
-             discountvalue,sdate,applydate)
+            INSERT INTO tdiscountinfo
+            (discountid,pindex,sitenum,groupnum,carnum,diskey,distype,
+             disvalue,source,sourceref,indate,disdate)
             VALUES
-            (@ParkingSessionId,'TEST',10,'Test','A',1,30,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)),
-            (@ParkingSessionId,'TEST',20,'Test','B',4,50,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6));
+            (@DiscountId1,@ParkingSessionId,9001,2,'TEST',10,1,30,'Test','A',UTC_TIMESTAMP(),UTC_TIMESTAMP()),
+            (@DiscountId2,@ParkingSessionId,9001,2,'TEST',20,4,50,'Test','B',UTC_TIMESTAMP(),UTC_TIMESTAMP());
 
-            INSERT INTO payment
-            (paymentid,parkindex,sitenum,originalfee,discountfee,payamount,
-             paymethod,approvalnum,paydate)
+            INSERT INTO tbcardinfo
+            (paymentid,pindex,sitenum,groupnum,devicenum,dealtype,money,
+             acceptnum,dealdate)
             VALUES
-            (@PaymentId1,@ParkingSessionId,9001,1000,0,400,'Card','A',UTC_TIMESTAMP(6)),
-            (@PaymentId2,@ParkingSessionId,9001,1000,0,300,'Card','B',UTC_TIMESTAMP(6));
+            (@PaymentId1,@ParkingSessionId,9001,2,0,'APPROVE',400,'A',UTC_TIMESTAMP()),
+            (@PaymentId2,@ParkingSessionId,9001,2,0,'APPROVE',300,'B',UTC_TIMESTAMP());
             """, new
         {
             ParkingSessionId = parkingSessionId,
-            PaymentId1 = Guid.NewGuid().ToByteArray(),
-            PaymentId2 = Guid.NewGuid().ToByteArray()
+            DiscountId1 = Guid.NewGuid().ToString("N"),
+            DiscountId2 = Guid.NewGuid().ToString("N"),
+            PaymentId1 = Guid.NewGuid().ToString("N"),
+            PaymentId2 = Guid.NewGuid().ToString("N")
         });
 
         SettlementRepository repository = new(ConnectionString);

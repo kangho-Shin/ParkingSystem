@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Dapper;
 using MySqlConnector;
 using Parking.Contracts;
@@ -6,21 +8,17 @@ namespace Parking.Central.Data;
 
 internal sealed class PaymentRow
 {
-    public byte[] PaymentId { get; set; } = Array.Empty<byte>();
+    public string PaymentId { get; set; } = "";
     public long ParkingSessionId { get; set; }
     public long SiteId { get; set; }
-    public long OriginalFee { get; set; }
-    public long DiscountFee { get; set; }
-    public long PaidAmount { get; set; }
-    public string PaymentMethod { get; set; } = "";
-    public string ApprovalNumber { get; set; } = "";
-    public string? TerminalId { get; set; }
-    public DateTime PaidAt { get; set; }
+    public string Fingerprint { get; set; } = "";
 }
 
 internal sealed class PaymentSessionRow
 {
     public long SiteId { get; set; }
+    public int Groupnum { get; set; }
+    public string CarNumber { get; set; } = "";
     public string OutFlag { get; set; } = "";
 }
 
@@ -45,11 +43,7 @@ public sealed class PaymentRepository : IPaymentRepository
         try
         {
             PaymentRow? existingPayment = await FindByPaymentIdAsync(
-                connection,
-                transaction,
-                request.PaymentId,
-                cancellationToken);
-
+                connection, transaction, request.PaymentId, cancellationToken);
             if (existingPayment is not null)
             {
                 await transaction.CommitAsync(cancellationToken);
@@ -58,17 +52,18 @@ public sealed class PaymentRepository : IPaymentRepository
                     : Failure(request, "PAYMENT_ID_CONFLICT", "같은 결제번호의 내용이 다릅니다.");
             }
 
-            PaymentSessionRow? session = await connection.QuerySingleOrDefaultAsync<PaymentSessionRow>(
-                new CommandDefinition("""
-                    SELECT sitenum SiteId, outflag OutFlag
-                    FROM parking_session
-                    WHERE xindex=@ParkingSessionId
-                    FOR UPDATE;
-                    """,
-                    new { request.ParkingSessionId },
-                    transaction,
-                    cancellationToken: cancellationToken));
-
+            PaymentSessionRow? session =
+                await connection.QuerySingleOrDefaultAsync<PaymentSessionRow>(
+                    new CommandDefinition("""
+                        SELECT sitenum SiteId,groupnum Groupnum,carnum CarNumber,
+                               outflag OutFlag
+                        FROM tparkinfo
+                        WHERE xindex=@ParkingSessionId
+                        FOR UPDATE;
+                        """,
+                        new { request.ParkingSessionId },
+                        transaction,
+                        cancellationToken: cancellationToken));
             if (session is null || session.SiteId != request.SiteId)
             {
                 await transaction.CommitAsync(cancellationToken);
@@ -82,54 +77,72 @@ public sealed class PaymentRepository : IPaymentRepository
             }
 
             PaymentRow? sessionPayment = await FindBySessionIdAsync(
-                connection,
-                transaction,
-                request.ParkingSessionId,
-                cancellationToken);
-
+                connection, transaction, request.ParkingSessionId, cancellationToken);
             if (sessionPayment is not null)
             {
                 await transaction.CommitAsync(cancellationToken);
-                return sessionPayment.PaymentId.AsSpan().SequenceEqual(request.PaymentId.ToByteArray())
+                return sessionPayment.PaymentId == request.PaymentId.ToString("N")
                     ? Success(request.PaymentId, request.ParkingSessionId)
-                    : Failure(request, "PARKING_SESSION_ALREADY_PAID", "이미 결제된 주차내역입니다.");
+                    : Failure(
+                        request,
+                        "PARKING_SESSION_ALREADY_PAID",
+                        "이미 결제된 주차내역입니다.");
             }
 
+            int paymentType = PaymentType(request.PaymentMethod);
+            int deviceNumber = await FindDeviceNumberAsync(
+                connection,
+                transaction,
+                request.SiteId,
+                session.Groupnum,
+                request.TerminalId,
+                cancellationToken);
+            DateTime paidAt = ParkingLocalTime.ToDatabase(request.PaidAt);
+
             await connection.ExecuteAsync(new CommandDefinition("""
-                INSERT INTO payment
-                (paymentid,parkindex,sitenum,originalfee,discountfee,
-                 payamount,paymethod,approvalnum,terminalid,paydate)
+                INSERT INTO tbcardinfo
+                (paymentid,pindex,sitenum,groupnum,devicenum,carnum,termid,
+                 dealtype,credittype,money,rescode,msg,acceptnum,dealdate)
                 VALUES
-                (@PaymentId,@ParkingSessionId,@SiteId,@OriginalFee,@DiscountFee,
-                 @PaidAmount,@PaymentMethod,@ApprovalNumber,@TerminalId,@PaidAtLocal);
+                (@PaymentId,@ParkingSessionId,@SiteId,@Groupnum,@DeviceNumber,
+                 @CarNumber,@TerminalId,'APPROVE',@PaymentType,@PaidAmount,
+                 '0000',@Fingerprint,@ApprovalNumber,@PaidAt);
                 """,
                 new
                 {
-                    PaymentId = request.PaymentId.ToByteArray(),
+                    PaymentId = request.PaymentId.ToString("N"),
                     request.ParkingSessionId,
                     request.SiteId,
-                    request.OriginalFee,
-                    request.DiscountFee,
+                    session.Groupnum,
+                    DeviceNumber = deviceNumber,
+                    session.CarNumber,
+                    TerminalId = EmptyToNull(request.TerminalId),
+                    PaymentType = paymentType,
                     request.PaidAmount,
-                    PaymentMethod = request.PaymentMethod.Trim(),
+                    Fingerprint = PaymentFingerprint(request),
                     ApprovalNumber = request.ApprovalNumber.Trim(),
-                    TerminalId = string.IsNullOrWhiteSpace(request.TerminalId)
-                        ? null
-                        : request.TerminalId.Trim(),
-                    PaidAtLocal = ParkingLocalTime.ToDatabase(request.PaidAt)
+                    PaidAt = paidAt
                 },
                 transaction,
                 cancellationToken: cancellationToken));
 
             await connection.ExecuteAsync(new CommandDefinition("""
-                UPDATE parking_session
-                SET outflag='X', paydate=@PaidAtLocal
+                UPDATE tparkinfo
+                SET outflag='X',paydate=@PaidAt,parkfee=@OriginalFee,
+                    discountfee=@DiscountFee,payfee=@PaidAmount,
+                    paidfee=(SELECT COALESCE(SUM(money),0)
+                             FROM tbcardinfo WHERE pindex=@ParkingSessionId),
+                    paytype=@PaymentType
                 WHERE xindex=@ParkingSessionId;
                 """,
                 new
                 {
                     request.ParkingSessionId,
-                    PaidAtLocal = ParkingLocalTime.ToDatabase(request.PaidAt)
+                    PaidAt = paidAt,
+                    request.OriginalFee,
+                    request.DiscountFee,
+                    request.PaidAmount,
+                    PaymentType = paymentType
                 },
                 transaction,
                 cancellationToken: cancellationToken));
@@ -150,13 +163,12 @@ public sealed class PaymentRepository : IPaymentRepository
         Guid paymentId,
         CancellationToken cancellationToken) =>
         connection.QuerySingleOrDefaultAsync<PaymentRow>(new CommandDefinition("""
-            SELECT paymentid PaymentId, parkindex ParkingSessionId, sitenum SiteId,
-                   originalfee OriginalFee, discountfee DiscountFee, payamount PaidAmount,
-                   paymethod PaymentMethod, approvalnum ApprovalNumber,
-                   terminalid TerminalId, paydate PaidAt
-            FROM payment WHERE paymentid=@PaymentId;
+            SELECT c.paymentid PaymentId,c.pindex ParkingSessionId,
+                   c.sitenum SiteId,c.msg Fingerprint
+            FROM tbcardinfo c
+            WHERE c.paymentid=@PaymentId;
             """,
-            new { PaymentId = paymentId.ToByteArray() },
+            new { PaymentId = paymentId.ToString("N") },
             transaction,
             cancellationToken: cancellationToken));
 
@@ -165,24 +177,64 @@ public sealed class PaymentRepository : IPaymentRepository
         MySqlTransaction transaction,
         long parkingSessionId,
         CancellationToken cancellationToken) =>
-        connection.QuerySingleOrDefaultAsync<PaymentRow>(new CommandDefinition("""
-            SELECT paymentid PaymentId, parkindex ParkingSessionId
-            FROM payment WHERE parkindex=@ParkingSessionId;
+        connection.QueryFirstOrDefaultAsync<PaymentRow>(new CommandDefinition("""
+            SELECT paymentid PaymentId,pindex ParkingSessionId
+            FROM tbcardinfo
+            WHERE pindex=@ParkingSessionId AND dealtype='APPROVE' AND money>0
+            ORDER BY xindex DESC LIMIT 1;
             """,
             new { ParkingSessionId = parkingSessionId },
             transaction,
             cancellationToken: cancellationToken));
 
+    private static async Task<int> FindDeviceNumberAsync(
+        MySqlConnection connection,
+        MySqlTransaction transaction,
+        long siteId,
+        int groupnum,
+        string? terminalId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(terminalId))
+            return 0;
+        return await connection.QuerySingleOrDefaultAsync<int>(new CommandDefinition("""
+            SELECT devicenum FROM tdeviceinfo
+            WHERE sitenum=@SiteId AND groupnum=@Groupnum
+              AND termid=@TerminalId AND useflag=1
+            ORDER BY deviceid LIMIT 1;
+            """,
+            new { SiteId = siteId, Groupnum = groupnum, TerminalId = terminalId.Trim() },
+            transaction,
+            cancellationToken: cancellationToken));
+    }
+
     private static bool SamePayment(PaymentRow row, CompletePaymentRequest request) =>
         row.ParkingSessionId == request.ParkingSessionId &&
         row.SiteId == request.SiteId &&
-        row.OriginalFee == request.OriginalFee &&
-        row.DiscountFee == request.DiscountFee &&
-        row.PaidAmount == request.PaidAmount &&
-        row.PaymentMethod == request.PaymentMethod.Trim() &&
-        row.ApprovalNumber == request.ApprovalNumber.Trim() &&
-        (row.TerminalId ?? "") == (request.TerminalId?.Trim() ?? "") &&
-        row.PaidAt == ParkingLocalTime.ToDatabase(request.PaidAt);
+        row.Fingerprint == PaymentFingerprint(request);
+
+    private static string PaymentFingerprint(CompletePaymentRequest request)
+    {
+        string canonical = string.Join("\u001f",
+            request.ParkingSessionId,
+            request.SiteId,
+            request.OriginalFee,
+            request.DiscountFee,
+            request.PaidAmount,
+            PaymentType(request.PaymentMethod),
+            request.ApprovalNumber.Trim(),
+            request.TerminalId?.Trim() ?? "",
+            ParkingLocalTime.ToDatabase(request.PaidAt).ToString("yyyyMMddHHmmss"));
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
+    }
+
+    private static int PaymentType(string value) =>
+        int.TryParse(value, out int result)
+            ? result
+            : value.Equals("Card", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+
+    private static string? EmptyToNull(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static PaymentCompleteResponse Success(Guid paymentId, long parkingSessionId) =>
         new(paymentId, parkingSessionId, true, "PAYMENT_COMPLETED", "결제가 완료되었습니다.", true);

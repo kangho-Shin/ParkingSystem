@@ -6,6 +6,13 @@ public interface IParkingExitRepository
 {
     Task<OpenParkingSessionResponse?> FindOpenAsync(long siteId, string carNumber, CancellationToken cancellationToken);
     Task<OpenParkingSessionResponse?> FindOpenByIdAsync(long parkingSessionId, CancellationToken cancellationToken);
+    Task SaveCalculationAsync(
+        long parkingSessionId,
+        int parkingMinutes,
+        long originalFee,
+        long discountFee,
+        long payFee,
+        CancellationToken cancellationToken);
     Task MarkSettledAsync(long parkingSessionId, DateTimeOffset settledAt, CancellationToken cancellationToken);
     Task<FieldEventResponse> SaveExitAsync(
         ExitEventRequest request,

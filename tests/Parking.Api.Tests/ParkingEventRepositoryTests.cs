@@ -26,6 +26,8 @@ public class ParkingEventRepositoryTests
 
         Assert.Equal(first.ParkingSessionId, second.ParkingSessionId);
         Assert.Equal(1, await GetSessionCountAsync());
+        Assert.Equal(1, await GetGeneralEntryCountAsync());
+        Assert.Equal(0, await GetGeneralExitCountAsync());
     }
 
     [Fact]
@@ -36,11 +38,12 @@ public class ParkingEventRepositoryTests
         FieldEventResponse result = await repository.SaveEntryAsync(
             new FieldEventRequest(
                 Guid.NewGuid(),
-                1,
-                10,
-                101,
+                9001,
+                9010,
+                4001,
                 "34나5678",
-                DateTimeOffset.UtcNow),
+                DateTimeOffset.UtcNow,
+                2),
             CancellationToken.None);
 
         Assert.Equal("I", await GetOutFlagAsync(result.ParkingSessionId!.Value));
@@ -62,15 +65,17 @@ public class ParkingEventRepositoryTests
 
         await using MySqlConnection connection = new(ConnectionString);
         EntryStorageRow stored = await connection.QuerySingleAsync<EntryStorageRow>("""
-            SELECT s.groupnum Groupnum, s.indeviceid InDeviceId,
-                   s.inimage InImage, e.imagepath EventImage
-            FROM parking_session s
-            JOIN parking_event e ON e.eventid=s.ineventid
+            SELECT s.groupnum Groupnum,s.indevicenum InDeviceNumber,
+                   e.eventid EventId,
+                   s.inimage InImage, e.image EventImage
+            FROM tparkinfo s
+            JOIN tparkevent e ON e.eventid=s.ineventid
             WHERE s.xindex=@ParkingSessionId;
             """, new { ParkingSessionId = result.ParkingSessionId });
 
         Assert.Equal(2, stored.Groupnum);
-        Assert.Equal(4001, stored.InDeviceId);
+        Assert.Equal(401, stored.InDeviceNumber);
+        Assert.Equal(request.EventId.ToString("N"), stored.EventId);
         Assert.Equal("9001_002_401_9010_Entry_test.jpg", stored.InImage);
         Assert.Equal("9001_002_401_9010_Entry_test.jpg", stored.EventImage);
     }
@@ -94,10 +99,12 @@ public class ParkingEventRepositoryTests
         Assert.Equal(oldSessionId, result.ParkingSessionId);
         Assert.Equal("ENTRY_DUPLICATE", result.ResultCode);
         Assert.Equal(1, await GetSessionCountAsync());
+        Assert.Equal(1, await GetGeneralEntryCountAsync());
+        Assert.Equal(0, await GetGeneralExitCountAsync());
     }
 
     [Fact]
-    public async Task 오래된_I차량은_이전세션과_입차이벤트를_삭제후_새로_입차한다()
+    public async Task 오래된_I차량은_이전세션을_삭제후_새로_입차하고_원본이벤트는_보존한다()
     {
         await ClearTablesAsync();
         await SetDuplicateEntryTimeAsync(10);
@@ -115,11 +122,13 @@ public class ParkingEventRepositoryTests
         Assert.NotEqual(oldSessionId, result.ParkingSessionId);
         await using MySqlConnection connection = new(ConnectionString);
         Assert.Equal(0, await connection.ExecuteScalarAsync<long>(
-            "SELECT COUNT(*) FROM parking_session WHERE xindex=@OldSessionId;",
+            "SELECT COUNT(*) FROM tparkinfo WHERE xindex=@OldSessionId;",
             new { OldSessionId = oldSessionId }));
-        Assert.Equal(0, await connection.ExecuteScalarAsync<long>(
-            "SELECT COUNT(*) FROM parking_event WHERE eventid=@OldEventId;",
-            new { OldEventId = oldEventId.ToByteArray() }));
+        Assert.Equal(1, await connection.ExecuteScalarAsync<long>(
+            "SELECT COUNT(*) FROM tparkevent WHERE eventid=@OldEventId;",
+            new { OldEventId = oldEventId.ToString("N") }));
+        Assert.Equal(2, await GetGeneralEntryCountAsync());
+        Assert.Equal(1, await GetGeneralExitCountAsync());
     }
 
     [Fact]
@@ -139,11 +148,13 @@ public class ParkingEventRepositoryTests
 
         await using MySqlConnection connection = new(ConnectionString);
         Assert.Equal("O", await connection.ExecuteScalarAsync<string>(
-            "SELECT outflag FROM parking_session WHERE xindex=@OldSessionId;",
+            "SELECT outflag FROM tparkinfo WHERE xindex=@OldSessionId;",
             new { OldSessionId = oldSessionId }));
         Assert.Equal("I", await connection.ExecuteScalarAsync<string>(
-            "SELECT outflag FROM parking_session WHERE xindex=@NewSessionId;",
+            "SELECT outflag FROM tparkinfo WHERE xindex=@NewSessionId;",
             new { NewSessionId = result.ParkingSessionId }));
+        Assert.Equal(2, await GetGeneralEntryCountAsync());
+        Assert.Equal(1, await GetGeneralExitCountAsync());
     }
 
     private static async Task ClearTablesAsync()
@@ -151,24 +162,41 @@ public class ParkingEventRepositoryTests
         await using MySqlConnection connection = new(ConnectionString);
         await connection.ExecuteAsync(
             """
-            DELETE FROM parking_session_discount;
-            DELETE FROM payment;
-            DELETE FROM parking_session;
-            DELETE FROM parking_event;
+            DELETE FROM tdiscountinfo;
+            DELETE FROM tbcardinfo;
+            DELETE FROM tparkinfo;
+            DELETE FROM tparkevent;
+            UPDATE tparkingnum
+            SET inilbancnt=0,outilbancnt=0,inregcnt=0,outregcnt=0
+            WHERE sitenum=9001 AND groupnum=2;
             """);
     }
 
     private static async Task<long> GetSessionCountAsync()
     {
         await using MySqlConnection connection = new(ConnectionString);
-        return await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM parking_session;");
+        return await connection.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM tparkinfo;");
+    }
+
+    private static async Task<long> GetGeneralEntryCountAsync()
+    {
+        await using MySqlConnection connection = new(ConnectionString);
+        return await connection.ExecuteScalarAsync<long>(
+            "SELECT inilbancnt FROM tparkingnum WHERE sitenum=9001 AND groupnum=2;");
+    }
+
+    private static async Task<long> GetGeneralExitCountAsync()
+    {
+        await using MySqlConnection connection = new(ConnectionString);
+        return await connection.ExecuteScalarAsync<long>(
+            "SELECT outilbancnt FROM tparkingnum WHERE sitenum=9001 AND groupnum=2;");
     }
 
     private static async Task SetDuplicateEntryTimeAsync(int seconds)
     {
         await using MySqlConnection connection = new(ConnectionString);
         await connection.ExecuteAsync("""
-            INSERT INTO tparkvariable(sitenum,groupnum,cmd_type,val,opt,msg)
+            INSERT INTO tparkvariable(sitenum,groupnum,cmdtype,val,opt,msg)
             VALUES (9001,2,'CMD_DUPLICATE_ENTRY_TIME','0',@Seconds,NULL)
             ON DUPLICATE KEY UPDATE opt=VALUES(opt);
             """, new { Seconds = seconds.ToString() });
@@ -182,27 +210,32 @@ public class ParkingEventRepositoryTests
         Guid eventId = Guid.NewGuid();
         await using MySqlConnection connection = new(ConnectionString);
         await connection.ExecuteAsync("""
-            INSERT INTO parking_event
-            (eventid,sitenum,groupnum,laneid,deviceid,eventtype,carnum,eventat)
-            VALUES (@EventId,9001,2,9010,4001,'Entry',@CarNumber,@InDateTime);
+            INSERT INTO tparkevent
+            (eventid,sitenum,groupnum,laneid,deviceid,devicenum,eventtype,carnum,eventdate,status)
+            VALUES (@EventId,9001,2,9010,4001,401,'ENTRY',@CarNumber,@InDateTime,'COMPLETE');
             """, new
         {
-            EventId = eventId.ToByteArray(),
+            EventId = eventId.ToString("N"),
             CarNumber = carNumber,
             InDateTime = ParkingLocalTime.ToDatabase(inDateTime)
         });
         long parkingSessionId = await connection.ExecuteScalarAsync<long>("""
-            INSERT INTO parking_session
-            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indeviceid,indate,outflag)
-            VALUES (9001,@EventId,@CarNumber,2,1,9010,4001,@InDateTime,@OutFlag);
+            INSERT INTO tparkinfo
+            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indevicenum,indate,outflag)
+            VALUES (9001,@EventId,@CarNumber,2,1,9010,401,@InDateTime,@OutFlag);
             SELECT LAST_INSERT_ID();
             """, new
         {
-            EventId = eventId.ToByteArray(),
+            EventId = eventId.ToString("N"),
             CarNumber = carNumber,
             InDateTime = ParkingLocalTime.ToDatabase(inDateTime),
             OutFlag = outFlag
         });
+        await connection.ExecuteAsync("""
+            UPDATE tparkingnum
+            SET inilbancnt=inilbancnt+1
+            WHERE sitenum=9001 AND groupnum=2;
+            """);
         return (parkingSessionId, eventId);
     }
 
@@ -210,14 +243,15 @@ public class ParkingEventRepositoryTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<string>(
-            "SELECT outflag FROM parking_session WHERE xindex=@ParkingSessionId;",
+            "SELECT outflag FROM tparkinfo WHERE xindex=@ParkingSessionId;",
             new { ParkingSessionId = parkingSessionId });
     }
 
     private sealed class EntryStorageRow
     {
         public int Groupnum { get; set; }
-        public long InDeviceId { get; set; }
+        public int InDeviceNumber { get; set; }
+        public string EventId { get; set; } = "";
         public string? InImage { get; set; }
         public string? EventImage { get; set; }
     }

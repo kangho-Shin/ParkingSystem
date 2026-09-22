@@ -21,15 +21,15 @@ public sealed class ParkingLaneDirectionValidatorTests
         const long deviceId = 4001;
         await using MySqlConnection connection = new(ConnectionString);
         await connection.ExecuteAsync("""
-            INSERT INTO parking_site(sitenum,sitename,useflag)
-            VALUES (@SiteId,'방향시험',1)
+            INSERT INTO tparkings(sitenum,groupnum,parkname,parktype,sitekeyhash,useflag)
+            VALUES (@SiteId,2,'방향시험','TEST',REPEAT('0',64),1)
             ON DUPLICATE KEY UPDATE useflag=1;
-            INSERT INTO parking_lane(laneid,sitenum,groupnum,lanename,direction,useflag)
-            VALUES (@LaneId,@SiteId,2,'입차시험','Entry',1)
-            ON DUPLICATE KEY UPDATE groupnum=2,direction='Entry',useflag=1;
-            INSERT INTO parking_device
-            (deviceid,sitenum,laneid,devicenum,devicetype,devicename,useflag)
-            VALUES (@DeviceId,@SiteId,@LaneId,401,'LPR','입차LPR',1)
+            INSERT INTO tlaneinfo(laneid,sitenum,groupnum,lanename,direction,useflag)
+            VALUES (@LaneId,@SiteId,2,'입차시험','ENTRY',1)
+            ON DUPLICATE KEY UPDATE groupnum=2,direction='ENTRY',useflag=1;
+            INSERT INTO tdeviceinfo
+            (deviceid,sitenum,groupnum,laneid,devicenum,devicetype,devicename,useflag)
+            VALUES (@DeviceId,@SiteId,2,@LaneId,401,3,'입차LPR',1)
             ON DUPLICATE KEY UPDATE sitenum=@SiteId,laneid=@LaneId,useflag=1;
             """, new { SiteId = siteId, LaneId = laneId, DeviceId = deviceId });
         ParkingLaneDirectionValidator validator = new(ConnectionString);

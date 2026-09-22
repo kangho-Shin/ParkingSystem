@@ -27,7 +27,7 @@ public sealed class ParkingSearchRepository : IParkingSearchRepository
             SELECT xindex ParkingSessionId, carnum CarNumber,
                    groupnum Groupnum, cartype CarType,
                    indate InDateTime, inimage InImage
-            FROM parking_session
+            FROM tparkinfo
             WHERE sitenum=@SiteId AND groupnum=@Groupnum
               AND outflag<>'O' AND {numberCondition}
             ORDER BY indate DESC, xindex DESC;

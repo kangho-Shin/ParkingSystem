@@ -55,6 +55,7 @@ public sealed class ParkingExitRepositoryTests
     {
         string carNumber = $"TEST{Guid.NewGuid():N}"[..20];
         long parkingSessionId = await CreateSessionAsync(carNumber, "I");
+        long beforeExitCount = await GetGeneralExitCountAsync();
         ParkingExitRepository repository = new(ConnectionString);
 
         FieldEventResponse result = await repository.SaveExitAsync(
@@ -66,6 +67,7 @@ public sealed class ParkingExitRepositoryTests
         Assert.True(result.OpenBarrier);
         Assert.Equal("EXIT_ACCEPTED", result.ResultCode);
         Assert.Equal("O", await GetSessionOutFlagAsync(parkingSessionId));
+        Assert.Equal(beforeExitCount + 1, await GetGeneralExitCountAsync());
     }
 
     [Fact]
@@ -118,15 +120,15 @@ public sealed class ParkingExitRepositoryTests
 
         await using MySqlConnection connection = new(ConnectionString);
         ExitStorageRow stored = await connection.QuerySingleAsync<ExitStorageRow>("""
-            SELECT s.outdeviceid OutDeviceId, s.outimage OutImage,
-                   e.groupnum Groupnum, e.imagepath EventImage
-            FROM parking_session s
-            JOIN parking_event e ON e.eventid=s.outeventid
+            SELECT s.outdevicenum OutDeviceNumber, s.outimage OutImage,
+                   e.groupnum Groupnum, e.image EventImage
+            FROM tparkinfo s
+            JOIN tparkevent e ON e.eventid=s.outeventid
             WHERE s.xindex=@ParkingSessionId;
             """, new { ParkingSessionId = parkingSessionId });
 
         Assert.Equal(2, stored.Groupnum);
-        Assert.Equal(4002, stored.OutDeviceId);
+        Assert.Equal(402, stored.OutDeviceNumber);
         Assert.Equal("9001_002_402_9020_Exit_test.jpg", stored.OutImage);
         Assert.Equal("9001_002_402_9020_Exit_test.jpg", stored.EventImage);
     }
@@ -143,7 +145,7 @@ public sealed class ParkingExitRepositoryTests
     private sealed class ExitStorageRow
     {
         public int Groupnum { get; set; }
-        public long OutDeviceId { get; set; }
+        public int OutDeviceNumber { get; set; }
         public string? OutImage { get; set; }
         public string? EventImage { get; set; }
     }
@@ -156,13 +158,13 @@ public sealed class ParkingExitRepositoryTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<long>("""
-            INSERT INTO parking_session
-            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,outflag)
-            VALUES (9001,@EntryEventId,@CarNumber,@Groupnum,@CarType,9010,UTC_TIMESTAMP(6),@OutFlag);
+            INSERT INTO tparkinfo
+            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indevicenum,indate,outflag)
+            VALUES (9001,@EntryEventId,@CarNumber,@Groupnum,@CarType,9010,401,UTC_TIMESTAMP(),@OutFlag);
             SELECT LAST_INSERT_ID();
             """, new
             {
-                EntryEventId = Guid.NewGuid().ToByteArray(),
+                EntryEventId = Guid.NewGuid().ToString("N"),
                 CarNumber = carNumber,
                 Groupnum = groupnum,
                 CarType = carType,
@@ -174,7 +176,14 @@ public sealed class ParkingExitRepositoryTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<string>(
-            "SELECT outflag FROM parking_session WHERE xindex=@ParkingSessionId;",
+            "SELECT outflag FROM tparkinfo WHERE xindex=@ParkingSessionId;",
             new { ParkingSessionId = parkingSessionId });
+    }
+
+    private static async Task<long> GetGeneralExitCountAsync()
+    {
+        await using MySqlConnection connection = new(ConnectionString);
+        return await connection.ExecuteScalarAsync<long>(
+            "SELECT outilbancnt FROM tparkingnum WHERE sitenum=9001 AND groupnum=2;");
     }
 }

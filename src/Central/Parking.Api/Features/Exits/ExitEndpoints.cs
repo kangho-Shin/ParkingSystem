@@ -121,6 +121,13 @@ namespace Parking.Api.Features.Exits
                     settlement.LastPaydate,
                     request.OutDateTime,
                     calculation.PrepayGraceTime);
+                await _repository.SaveCalculationAsync(
+                    session.ParkingSessionId,
+                    calculation.Fee.ParkingMinutes,
+                    calculation.Fee.OriginalFee,
+                    calculation.Fee.OriginalFee - calculation.Fee.FinalFee,
+                    calculation.Fee.FinalFee,
+                    cancellationToken);
                 exitAllowed = settlementResult.PayableAmount == 0;
             }
 

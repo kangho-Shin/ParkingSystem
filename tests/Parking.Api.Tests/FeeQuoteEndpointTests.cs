@@ -27,23 +27,23 @@ public sealed class FeeQuoteEndpointTests
         await using (MySqlConnection connection = new(ConnectionString))
         {
             await connection.ExecuteAsync("""
-                INSERT INTO tparkvariable(sitenum,groupnum,cmd_type,val,opt,msg)
+                INSERT INTO tparkvariable(sitenum,groupnum,cmdtype,val,opt,msg)
                 VALUES (9001,2,'CMD_PREPAY_GRACE','0','10',NULL)
                 ON DUPLICATE KEY UPDATE val=VALUES(val),opt=VALUES(opt),msg=VALUES(msg);
 
-                INSERT INTO tdiscount(sitenum,groupnum,`key`,type,value)
-                VALUES (9001,2,10,4,50)
-                ON DUPLICATE KEY UPDATE type=VALUES(type),value=VALUES(value);
+                INSERT INTO tdiscount(sitenum,groupnum,diskey,distype,disvalue,title)
+                VALUES (9001,2,10,4,50,'50원 고정')
+                ON DUPLICATE KEY UPDATE distype=VALUES(distype),disvalue=VALUES(disvalue);
                 """);
 
             parkingSessionId = await connection.ExecuteScalarAsync<long>("""
-                INSERT INTO parking_session
-                (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,paydate,outflag)
-                VALUES (9001,@EventId,@CarNumber,2,1,9010,@EntryAt,@Paydate,'X');
+                INSERT INTO tparkinfo
+                (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indevicenum,indate,paydate,outflag)
+                VALUES (9001,@EventId,@CarNumber,2,1,9010,401,@EntryAt,@Paydate,'X');
                 SELECT LAST_INSERT_ID();
                 """, new
             {
-                EventId = Guid.NewGuid().ToByteArray(),
+                EventId = Guid.NewGuid().ToString("N"),
                 CarNumber = carNumber,
                 EntryAt = Parking.Central.Data.ParkingLocalTime.ToDatabase(
                     new DateTimeOffset(paydate.AddHours(-2), TimeSpan.Zero)),
@@ -52,24 +52,25 @@ public sealed class FeeQuoteEndpointTests
             });
 
             await connection.ExecuteAsync("""
-                INSERT INTO parking_session_discount
-                (parkindex,carnum,discountkey,source,sourceref,discounttype,
-                 discountvalue,sdate,applydate)
+                INSERT INTO tdiscountinfo
+                (discountid,pindex,sitenum,groupnum,carnum,diskey,distype,
+                 disvalue,source,sourceref,indate,disdate)
                 VALUES
-                (@ParkingSessionId,@CarNumber,10,'Test','QUOTE',4,50,@Paydate,@Paydate);
+                (@DiscountId,@ParkingSessionId,9001,2,@CarNumber,10,4,50,'Test','QUOTE',@Paydate,@Paydate);
 
-                INSERT INTO payment
-                (paymentid,parkindex,sitenum,originalfee,discountfee,payamount,
-                 paymethod,approvalnum,paydate)
+                INSERT INTO tbcardinfo
+                (paymentid,pindex,sitenum,groupnum,devicenum,dealtype,money,
+                 acceptnum,dealdate)
                 VALUES
-                (@PaymentId,@ParkingSessionId,9001,1000,500,500,'Card','QUOTE',@Paydate);
+                (@PaymentId,@ParkingSessionId,9001,2,0,'APPROVE',500,'QUOTE',@Paydate);
                 """, new
             {
                 ParkingSessionId = parkingSessionId,
                 CarNumber = carNumber,
                 Paydate = Parking.Central.Data.ParkingLocalTime.ToDatabase(
                     new DateTimeOffset(paydate, TimeSpan.Zero)),
-                PaymentId = Guid.NewGuid().ToByteArray()
+                DiscountId = Guid.NewGuid().ToString("N"),
+                PaymentId = Guid.NewGuid().ToString("N")
             });
         }
 
@@ -103,17 +104,18 @@ public sealed class FeeQuoteEndpointTests
     public async Task 선택세션_0원견적은_정산완료_X로_변경한다()
     {
         DateTime exitAt = DateTime.UtcNow;
+        exitAt = exitAt.AddTicks(-(exitAt.Ticks % TimeSpan.TicksPerSecond));
         long parkingSessionId;
         await using (MySqlConnection connection = new(ConnectionString))
         {
             parkingSessionId = await connection.ExecuteScalarAsync<long>("""
-                INSERT INTO parking_session
-                (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,outflag)
-                VALUES (9001,@EventId,@CarNumber,99,1,9010,@EntryAt,'I');
+                INSERT INTO tparkinfo
+                (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indevicenum,indate,outflag)
+                VALUES (9001,@EventId,@CarNumber,99,1,9010,401,@EntryAt,'I');
                 SELECT LAST_INSERT_ID();
                 """, new
             {
-                EventId = Guid.NewGuid().ToByteArray(),
+                EventId = Guid.NewGuid().ToString("N"),
                 CarNumber = $"FREE{Guid.NewGuid():N}"[..20],
                 EntryAt = Parking.Central.Data.ParkingLocalTime.ToDatabase(
                     new DateTimeOffset(exitAt.AddMinutes(-10), TimeSpan.Zero))
@@ -141,9 +143,16 @@ public sealed class FeeQuoteEndpointTests
         Assert.Equal(0, result.PayableAmount);
 
         await using MySqlConnection verifyConnection = new(ConnectionString);
-        Assert.Equal("X", await verifyConnection.ExecuteScalarAsync<string>(
-            "SELECT outflag FROM parking_session WHERE xindex=@ParkingSessionId;",
-            new { ParkingSessionId = parkingSessionId }));
+        FeeStorageRow stored = await verifyConnection.QuerySingleAsync<FeeStorageRow>("""
+            SELECT outflag OutFlag,parktime ParkTime,parkfee ParkFee,
+                   discountfee DiscountFee,payfee PayFee
+            FROM tparkinfo WHERE xindex=@ParkingSessionId;
+            """, new { ParkingSessionId = parkingSessionId });
+        Assert.Equal("X", stored.OutFlag);
+        Assert.Equal(10, stored.ParkTime);
+        Assert.Equal(0, stored.ParkFee);
+        Assert.Equal(0, stored.DiscountFee);
+        Assert.Equal(0, stored.PayFee);
     }
 
     private sealed class TestApplication : WebApplicationFactory<global::Parking.Api.Program>
@@ -152,5 +161,14 @@ public sealed class FeeQuoteEndpointTests
         {
             builder.UseSetting("ConnectionStrings:ParkingDatabase", ConnectionString);
         }
+    }
+
+    private sealed class FeeStorageRow
+    {
+        public string OutFlag { get; set; } = "";
+        public int ParkTime { get; set; }
+        public long ParkFee { get; set; }
+        public long DiscountFee { get; set; }
+        public long PayFee { get; set; }
     }
 }

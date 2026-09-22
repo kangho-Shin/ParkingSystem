@@ -16,26 +16,29 @@ public sealed class ParkCalcConfig
         List<Tparkfee> feeRules = (await db.QueryAsync<Tparkfee>(
             new CommandDefinition("""
                 SELECT * FROM tparkfee
-                WHERE sitenum=@Sitenum AND groupnum=@Groupnum
+                WHERE sitenum=@Sitenum AND groupnum=@Groupnum AND useflag=1
                 ORDER BY weektype,dayshift,cartype,feestep;
                 """, parameter, cancellationToken: cancellationToken))).AsList();
 
         List<Tdiscount> discounts = (await db.QueryAsync<Tdiscount>(
             new CommandDefinition("""
-                SELECT * FROM tdiscount
-                WHERE sitenum=@Sitenum AND groupnum=@Groupnum;
+                SELECT sitenum,groupnum,diskey `Key`,distype `Type`,disvalue `Value`
+                FROM tdiscount
+                WHERE sitenum=@Sitenum AND groupnum=@Groupnum AND useflag=1;
                 """, parameter, cancellationToken: cancellationToken))).AsList();
 
         List<Tholiday> holidays = (await db.QueryAsync<Tholiday>(
             new CommandDefinition("""
-                SELECT * FROM tholiday
-                WHERE sitenum=@Sitenum AND groupnum=@Groupnum;
+                SELECT sitenum,groupnum,holiday Hdate
+                FROM tholiday
+                WHERE sitenum=@Sitenum AND groupnum=@Groupnum AND useflag=1;
                 """, parameter, cancellationToken: cancellationToken))).AsList();
 
         List<Tparkvariable> variables = (await db.QueryAsync<Tparkvariable>(
             new CommandDefinition("""
-                SELECT * FROM tparkvariable
-                WHERE sitenum=@Sitenum AND groupnum=@Groupnum;
+                SELECT sitenum,groupnum,cmdtype,val,opt,msg
+                FROM tparkvariable
+                WHERE sitenum=@Sitenum AND groupnum=@Groupnum AND useflag=1;
                 """, parameter, cancellationToken: cancellationToken))).AsList();
 
         return new ParkingFeeConfiguration
@@ -75,7 +78,7 @@ public sealed class ParkCalcConfig
         for (int i = 0; i <= 6; i++)
         {
             string? value = variables.FirstOrDefault(
-                x => x.Cmd_type == $"CMD_OPTIME0{i}")?.Opt;
+                x => x.Cmdtype == $"CMD_OPTIME0{i}")?.Opt;
             string[] parts = value?.Split('~') ?? Array.Empty<string>();
 
             result[(DayOfWeek)i] =
@@ -94,7 +97,7 @@ public sealed class ParkCalcConfig
         string commandType,
         bool useOption)
     {
-        Tparkvariable? variable = variables.FirstOrDefault(x => x.Cmd_type == commandType);
+        Tparkvariable? variable = variables.FirstOrDefault(x => x.Cmdtype == commandType);
         string? value = useOption ? variable?.Opt : variable?.Val;
         return int.TryParse(value, out int result) ? result : 0;
     }

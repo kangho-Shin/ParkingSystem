@@ -125,7 +125,12 @@ public sealed class PeriodVehicleController : ControllerBase
     private static bool IsValid(PeriodMemberSaveRequest request) =>
         request.SiteId > 0 &&
         request.Groupnum > 0 &&
+        !string.IsNullOrWhiteSpace(request.Name) &&
         !string.IsNullOrWhiteSpace(request.CarNumber1) &&
-        (request.StartDate is null || request.EndDate is null || request.StartDate <= request.EndDate) &&
-        request.OutFlag is "I" or "X" or "O";
+        request.CarType1 is >= 1 and <= 3 &&
+        request.StartDate != default &&
+        request.EndDate >= request.StartDate &&
+        request.ParkArea is { Length: 7 } &&
+        request.ParkValidDay is { Length: 7 } &&
+        request.OutFlag is "I" or "O";
 }

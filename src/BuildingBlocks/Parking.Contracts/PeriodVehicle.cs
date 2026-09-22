@@ -4,10 +4,10 @@ public sealed record PeriodMember(
     long MemberId,
     long SiteId,
     int Groupnum,
-    long CardId,
+    long CardNumber,
     string Name,
     string CarNumber,
-    string CarType,
+    int CarType,
     DateTime? EndDate);
 
 public sealed record OpenPeriodSession(

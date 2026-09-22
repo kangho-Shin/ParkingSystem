@@ -66,10 +66,10 @@ public sealed class ParkingSearchEndpointTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         await connection.ExecuteAsync("""
-            DELETE FROM parking_session_discount;
-            DELETE FROM payment;
-            DELETE FROM parking_session;
-            DELETE FROM parking_event;
+            DELETE FROM tdiscountinfo;
+            DELETE FROM tbcardinfo;
+            DELETE FROM tparkinfo;
+            DELETE FROM tparkevent;
             """);
     }
 
@@ -80,14 +80,14 @@ public sealed class ParkingSearchEndpointTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<long>("""
-            INSERT INTO parking_session
-            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indeviceid,
+            INSERT INTO tparkinfo
+            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indevicenum,
              indate,inimage,outflag)
-            VALUES (9001,@EventId,@CarNumber,2,1,9010,4001,@InDateTime,@InImage,'I');
+            VALUES (9001,@EventId,@CarNumber,2,1,9010,401,@InDateTime,@InImage,'I');
             SELECT LAST_INSERT_ID();
             """, new
         {
-            EventId = Guid.NewGuid().ToByteArray(),
+            EventId = Guid.NewGuid().ToString("N"),
             CarNumber = carNumber,
             InDateTime = ParkingLocalTime.ToDatabase(
                 new DateTimeOffset(DateTime.SpecifyKind(inDateTime, DateTimeKind.Utc))),

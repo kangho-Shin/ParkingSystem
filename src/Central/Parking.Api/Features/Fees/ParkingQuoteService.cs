@@ -91,6 +91,14 @@ public sealed class ParkingQuoteService
             exitAt,
             calculation.PrepayGraceTime);
 
+        await _parkingRepository.SaveCalculationAsync(
+            session.ParkingSessionId,
+            calculation.Fee.ParkingMinutes,
+            calculation.Fee.OriginalFee,
+            calculation.Fee.OriginalFee - calculation.Fee.FinalFee,
+            calculation.Fee.FinalFee,
+            cancellationToken);
+
         if (result.PayableAmount == 0)
             await _parkingRepository.MarkSettledAsync(
                 session.ParkingSessionId,

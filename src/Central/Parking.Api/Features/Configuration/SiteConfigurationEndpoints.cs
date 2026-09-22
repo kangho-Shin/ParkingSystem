@@ -47,7 +47,7 @@ namespace Parking.Api.Features.Configuration
             long siteId, [FromBody] ParkingSite site, CancellationToken cancellationToken)
         {
             if (siteId != site.SiteId || siteId <= 0) return BadRequest();
-            await _repository.SaveSiteAsync(site, cancellationToken);
+            if (!await _repository.SaveSiteAsync(site, cancellationToken)) return NotFound();
             await _repository.TouchVersionAsync(siteId, cancellationToken);
             return NoContent();
         }
@@ -87,7 +87,7 @@ namespace Parking.Api.Features.Configuration
                 targetDeviceId != link.TargetDeviceId ||
                 link.SiteId <= 0 || sourceDeviceId <= 0 || targetDeviceId <= 0 ||
                 sourceDeviceId == targetDeviceId ||
-                (link.LinkType != "KIOSK" && link.LinkType != "LDM"))
+                link.LinkType is not ("KIOSK" or "LDM" or "GATE" or "VOICE"))
                 return BadRequest();
             SiteConfiguration? configuration =
                 await _repository.GetAsync(link.SiteId, cancellationToken);
@@ -97,7 +97,8 @@ namespace Parking.Api.Features.Configuration
                 device => device.DeviceId == targetDeviceId);
             if (source is null || target is null ||
                 source.SiteId != link.SiteId || target.SiteId != link.SiteId ||
-                !string.Equals(target.DeviceType, link.LinkType, StringComparison.OrdinalIgnoreCase))
+                (link.LinkType != "VOICE" &&
+                 !string.Equals(target.DeviceType, link.LinkType, StringComparison.OrdinalIgnoreCase)))
                 return BadRequest();
             await _repository.SaveDeviceLinkAsync(link, cancellationToken);
             await _repository.TouchVersionAsync(link.SiteId, cancellationToken);

@@ -40,10 +40,10 @@ public sealed class ParkingSearchRepositoryTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         await connection.ExecuteAsync("""
-            DELETE FROM parking_session_discount;
-            DELETE FROM payment;
-            DELETE FROM parking_session;
-            DELETE FROM parking_event;
+            DELETE FROM tdiscountinfo;
+            DELETE FROM tbcardinfo;
+            DELETE FROM tparkinfo;
+            DELETE FROM tparkevent;
             """);
     }
 
@@ -56,15 +56,15 @@ public sealed class ParkingSearchRepositoryTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<long>("""
-            INSERT INTO parking_session
-            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indeviceid,
+            INSERT INTO tparkinfo
+            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indevicenum,
              indate,inimage,outflag)
             VALUES
-            (9001,@EventId,@CarNumber,@Groupnum,1,9010,4001,@InDateTime,@InImage,@OutFlag);
+            (9001,@EventId,@CarNumber,@Groupnum,1,9010,401,@InDateTime,@InImage,@OutFlag);
             SELECT LAST_INSERT_ID();
             """, new
         {
-            EventId = Guid.NewGuid().ToByteArray(),
+            EventId = Guid.NewGuid().ToString("N"),
             CarNumber = carNumber,
             Groupnum = groupnum,
             InDateTime = inDateTime,
@@ -77,7 +77,7 @@ public sealed class ParkingSearchRepositoryTests
     {
         await using MySqlConnection connection = new(ConnectionString);
         return await connection.ExecuteScalarAsync<long>(
-            "SELECT COUNT(*) FROM parking_session WHERE xindex IN @ParkingSessionIds AND outflag='I';",
+            "SELECT COUNT(*) FROM tparkinfo WHERE xindex IN @ParkingSessionIds AND outflag='I';",
             new { ParkingSessionIds = parkingSessionIds });
     }
 }

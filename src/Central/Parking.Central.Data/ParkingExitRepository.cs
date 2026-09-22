@@ -1,4 +1,3 @@
-using Newtonsoft.Json;
 using Dapper;
 using MySqlConnector;
 using Parking.Contracts;
@@ -35,7 +34,7 @@ public sealed class ParkingExitRepository : IParkingExitRepository
             SELECT xindex ParkingSessionId, sitenum SiteId, carnum CarNumber,
                    groupnum Groupnum, cartype CarType, inlaneid EntryLaneId,
                    indate EntryAt, paydate Paydate, outflag Status
-            FROM parking_session
+            FROM tparkinfo
             WHERE sitenum=@SiteId AND carnum=@CarNumber AND outflag<>'O'
             ORDER BY indate DESC LIMIT 1;
             """;
@@ -57,7 +56,7 @@ public sealed class ParkingExitRepository : IParkingExitRepository
             SELECT xindex ParkingSessionId, sitenum SiteId, carnum CarNumber,
                    groupnum Groupnum, cartype CarType, inlaneid EntryLaneId,
                    indate EntryAt, paydate Paydate, outflag Status
-            FROM parking_session
+            FROM tparkinfo
             WHERE xindex=@ParkingSessionId AND outflag<>'O';
             """;
         await using MySqlConnection connection = new(_connectionString);
@@ -77,7 +76,7 @@ public sealed class ParkingExitRepository : IParkingExitRepository
     {
         await using MySqlConnection connection = new(_connectionString);
         await connection.ExecuteAsync(new CommandDefinition("""
-            UPDATE parking_session
+            UPDATE tparkinfo
             SET outflag='X', paydate=@SettledAtLocal
             WHERE xindex=@ParkingSessionId AND outflag='I';
             """,
@@ -86,6 +85,25 @@ public sealed class ParkingExitRepository : IParkingExitRepository
                 ParkingSessionId = parkingSessionId,
                 SettledAtLocal = ParkingLocalTime.ToDatabase(settledAt)
             },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task SaveCalculationAsync(
+        long parkingSessionId,
+        int parkingMinutes,
+        long originalFee,
+        long discountFee,
+        long payFee,
+        CancellationToken cancellationToken)
+    {
+        await using MySqlConnection connection = new(_connectionString);
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE tparkinfo
+            SET parktime=@ParkingMinutes,parkfee=@OriginalFee,
+                discountfee=@DiscountFee,payfee=@PayFee
+            WHERE xindex=@ParkingSessionId AND outflag<>'O';
+            """,
+            new { ParkingSessionId = parkingSessionId, parkingMinutes, originalFee, discountFee, payFee },
             cancellationToken: cancellationToken));
     }
 
@@ -118,40 +136,34 @@ public sealed class ParkingExitRepository : IParkingExitRepository
         await using MySqlConnection connection = new(_connectionString);
         await connection.OpenAsync(cancellationToken);
         await using MySqlTransaction transaction = await connection.BeginTransactionAsync(cancellationToken);
-        byte[] eventId = request.EventId.ToByteArray();
-
         try
         {
-            const string insertEvent = """
-                INSERT IGNORE INTO parking_event
-                (eventid,sitenum,groupnum,laneid,deviceid,eventtype,carnum,eventat,imagepath)
-                VALUES (@EventId,@SiteId,@Groupnum,@LaneId,@DeviceId,@EventType,
-                        @CarNumber,@OutDateTimeLocal,@OutImage);
-                """;
-            int inserted = await connection.ExecuteAsync(new CommandDefinition(insertEvent, new
-            {
-                EventId = eventId, request.SiteId, request.Groupnum,
-                request.LaneId, request.DeviceId, request.EventType,
-                request.CarNumber, OutDateTimeLocal = ParkingLocalTime.ToDatabase(request.OutDateTime),
-                OutImage = VehicleImageName.FileNameOnly(request.OutImage)
-            }, transaction, cancellationToken: cancellationToken));
+            int inserted = await ParkingEventData.InsertAsync(
+                connection, transaction, request.EventId, request.SiteId,
+                request.Groupnum, request.LaneId, request.DeviceId,
+                request.EventType, request.CarNumber, request.OutDateTime,
+                request.OutImage, cancellationToken);
 
             if (inserted == 0)
             {
-                string json = await connection.QuerySingleAsync<string>(new CommandDefinition(
-                    "SELECT resultjson FROM parking_event WHERE eventid=@EventId;",
-                    new { EventId = eventId }, transaction, cancellationToken: cancellationToken));
+                FieldEventResponse previous = await ParkingEventData.ReadResponseAsync(
+                    connection, transaction, request.EventId, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
-                return JsonConvert.DeserializeObject<FieldEventResponse>(json)
-                    ?? throw new InvalidOperationException("기존 출차결과를 읽지 못했습니다.");
+                return previous;
             }
 
             ExitParkingSessionRow? session = await connection.QuerySingleOrDefaultAsync<ExitParkingSessionRow>(new CommandDefinition("""
                 SELECT xindex ParkingSessionId, outflag Status
-                FROM parking_session
-                WHERE sitenum=@SiteId AND carnum=@CarNumber AND outflag<>'O'
+                FROM tparkinfo
+                WHERE sitenum=@SiteId AND groupnum=@Groupnum
+                  AND carnum=@CarNumber AND outflag<>'O'
                 ORDER BY indate DESC LIMIT 1 FOR UPDATE;
-                """, new { request.SiteId, request.CarNumber }, transaction, cancellationToken: cancellationToken));
+                """, new
+                {
+                    request.SiteId,
+                    request.Groupnum,
+                    CarNumber = request.CarNumber.Trim()
+                }, transaction, cancellationToken: cancellationToken));
 
             FieldEventResponse result;
             if (session is null)
@@ -170,21 +182,29 @@ public sealed class ParkingExitRepository : IParkingExitRepository
             }
             else
             {
+                int deviceNumber = await ParkingEventData.GetDeviceNumberAsync(
+                    connection, transaction, request.SiteId, request.Groupnum,
+                    request.DeviceId, cancellationToken);
                 await connection.ExecuteAsync(new CommandDefinition("""
-                    UPDATE parking_session SET outeventid=@EventId, outlaneid=@LaneId,
-                    outdeviceid=@DeviceId, outdate=@OutDateTimeLocal,
-                    outimage=@OutImage, outflag='O'
+                    UPDATE tparkinfo SET outeventid=@EventId,outlaneid=@LaneId,
+                    outdevicenum=@DeviceNumber,outdate=@OutDate,
+                    outimage=@OutImage,
+                    parktime=GREATEST(TIMESTAMPDIFF(MINUTE,indate,@OutDate),0),
+                    outflag='O'
                     WHERE xindex=@ParkingSessionId;
                     """, new
                     {
-                        EventId = eventId,
+                        EventId = ParkingEventData.EventId(request.EventId),
                         request.LaneId,
-                        request.DeviceId,
-                        OutDateTimeLocal = ParkingLocalTime.ToDatabase(request.OutDateTime),
+                        DeviceNumber = deviceNumber,
+                        OutDate = ParkingLocalTime.ToDatabase(request.OutDateTime),
                         OutImage = VehicleImageName.FileNameOnly(request.OutImage),
                         session.ParkingSessionId
                     },
                     transaction, cancellationToken: cancellationToken));
+                await ParkingEventData.IncrementGeneralExitAsync(
+                    connection, transaction, request.SiteId, request.Groupnum,
+                    cancellationToken);
                 result = new FieldEventResponse(
                     request.EventId, true, session.ParkingSessionId,
                     acceptedResultCode,
@@ -194,10 +214,9 @@ public sealed class ParkingExitRepository : IParkingExitRepository
                     true);
             }
 
-            await connection.ExecuteAsync(new CommandDefinition(
-                "UPDATE parking_event SET resultjson=@ResultJson WHERE eventid=@EventId;",
-                new { EventId = eventId, ResultJson = JsonConvert.SerializeObject(result) },
-                transaction, cancellationToken: cancellationToken));
+            await ParkingEventData.SaveResponseAsync(
+                connection, transaction, request.EventId, result, "GENERAL",
+                cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return result;
         }

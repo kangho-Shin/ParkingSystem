@@ -16,6 +16,8 @@ namespace Parking.Api.Tests;
 public sealed class ExitEndpointTests
 {
     private const int TestGroupnum = 98;
+    private const long TestExitLaneId = 98020;
+    private const long TestExitDeviceId = 984002;
 
     private static string ConnectionString =>
         Environment.GetEnvironmentVariable("PARKING_RUNTIME_CONNECTION")
@@ -75,6 +77,25 @@ public sealed class ExitEndpointTests
 
         await using MySqlConnection connection = new(ConnectionString);
         await connection.ExecuteAsync("""
+            INSERT INTO tparkings
+            (sitenum,groupnum,parkname,parktype,sitekeyhash,useflag)
+            VALUES(9001,@Groupnum,'출차시험','TEST',REPEAT('0',64),1)
+            ON DUPLICATE KEY UPDATE useflag=1;
+
+            INSERT INTO tlaneinfo
+            (laneid,sitenum,groupnum,lanename,direction,useflag)
+            VALUES(@LaneId,9001,@Groupnum,'출차시험차로','EXIT',1)
+            ON DUPLICATE KEY UPDATE direction='EXIT',useflag=1;
+
+            INSERT INTO tdeviceinfo
+            (deviceid,sitenum,groupnum,laneid,devicenum,devicename,devicetype,useflag)
+            VALUES(@DeviceId,9001,@Groupnum,@LaneId,402,'출차시험LPR',3,1)
+            ON DUPLICATE KEY UPDATE groupnum=@Groupnum,laneid=@LaneId,useflag=1;
+
+            INSERT INTO tparkingnum(sitenum,groupnum)
+            VALUES(9001,@Groupnum)
+            ON DUPLICATE KEY UPDATE groupnum=VALUES(groupnum);
+
             INSERT INTO tparkfee
             (sitenum,groupnum,weektype,dayshift,cartype,feestep,parktime,parkfee,maxcount)
             VALUES
@@ -83,18 +104,23 @@ public sealed class ExitEndpointTests
             ON DUPLICATE KEY UPDATE
             parktime=VALUES(parktime),parkfee=VALUES(parkfee),maxcount=VALUES(maxcount);
 
-            INSERT INTO tparkvariable(sitenum,groupnum,cmd_type,val,opt,msg)
+            INSERT INTO tparkvariable(sitenum,groupnum,cmdtype,val,opt,msg)
             VALUES (9001,@Groupnum,'CMD_PREPAY_GRACE','0','10',NULL)
             ON DUPLICATE KEY UPDATE val=VALUES(val),opt=VALUES(opt),msg=VALUES(msg);
-            """, new { Groupnum = TestGroupnum });
+            """, new
+            {
+                Groupnum = TestGroupnum,
+                LaneId = TestExitLaneId,
+                DeviceId = TestExitDeviceId
+            });
         long parkingSessionId = await connection.ExecuteScalarAsync<long>("""
-            INSERT INTO parking_session
-            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indate,paydate,outflag)
-            VALUES (9001,@EventId,@CarNumber,@Groupnum,1,9010,@EntryAt,@Paydate,'X');
+            INSERT INTO tparkinfo
+            (sitenum,ineventid,carnum,groupnum,cartype,inlaneid,indevicenum,indate,paydate,outflag)
+            VALUES (9001,@EventId,@CarNumber,@Groupnum,1,9010,401,@EntryAt,@Paydate,'X');
             SELECT LAST_INSERT_ID();
             """, new
         {
-            EventId = Guid.NewGuid().ToByteArray(),
+            EventId = Guid.NewGuid().ToString("N"),
             CarNumber = carNumber,
             Groupnum = TestGroupnum,
             EntryAt = ParkingLocalTime.ToDatabase(
@@ -104,15 +130,16 @@ public sealed class ExitEndpointTests
         });
 
         await connection.ExecuteAsync("""
-            INSERT INTO payment
-            (paymentid,parkindex,sitenum,originalfee,discountfee,payamount,
-             paymethod,approvalnum,paydate)
+            INSERT INTO tbcardinfo
+            (paymentid,pindex,sitenum,groupnum,devicenum,dealtype,money,
+             acceptnum,dealdate)
             VALUES
-            (@PaymentId,@ParkingSessionId,9001,2400,0,1,'Card','EXIT',@Paydate);
+            (@PaymentId,@ParkingSessionId,9001,@Groupnum,0,'APPROVE',1,'EXIT',@Paydate);
             """, new
         {
-            PaymentId = Guid.NewGuid().ToByteArray(),
+            PaymentId = Guid.NewGuid().ToString("N"),
             ParkingSessionId = parkingSessionId,
+            Groupnum = TestGroupnum,
             Paydate = ParkingLocalTime.ToDatabase(
                 new DateTimeOffset(paydate, TimeSpan.Zero))
         });
@@ -130,8 +157,8 @@ public sealed class ExitEndpointTests
         {
             EventId = Guid.NewGuid(),
             SiteId = 9001,
-            LaneId = 9020,
-            DeviceId = 4002,
+            LaneId = TestExitLaneId,
+            DeviceId = TestExitDeviceId,
             CarNumber = carNumber,
             OutDateTime = new DateTimeOffset(outDateTime, TimeSpan.Zero),
             Groupnum = TestGroupnum,
