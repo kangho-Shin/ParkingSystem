@@ -127,6 +127,13 @@ public sealed class KioskDeviceContractTests
             return Task.CompletedTask;
         }
 
+        public Task ResetDisplayAsync(
+            long kioskDeviceId, long siteId, CancellationToken cancellationToken)
+        {
+            DeviceId = kioskDeviceId;
+            return Task.CompletedTask;
+        }
+
         public Task<FieldEventResponse?> CompleteManualAsync(
             long kioskDeviceId, long siteId, int groupnum, string carNumber,
             DateTimeOffset exitAt, CancellationToken cancellationToken)
