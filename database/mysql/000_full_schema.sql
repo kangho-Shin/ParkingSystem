@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS parking_site (
     sitenum BIGINT NOT NULL,
     sitename VARCHAR(100) NOT NULL,
     useflag TINYINT(1) NOT NULL DEFAULT 1,
-    updatedat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updatedat DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     PRIMARY KEY (sitenum)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS parking_lane (
     lanename VARCHAR(100) NOT NULL,
     direction VARCHAR(10) NOT NULL,
     useflag TINYINT(1) NOT NULL DEFAULT 1,
-    updatedat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updatedat DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     PRIMARY KEY (laneid),
     INDEX ix_parking_lane_site_group (sitenum, groupnum),
     CONSTRAINT fk_parking_lane_site
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS parking_device (
     ipaddr VARCHAR(45) NULL,
     port INT NULL,
     useflag TINYINT(1) NOT NULL DEFAULT 1,
-    updatedat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updatedat DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     PRIMARY KEY (deviceid),
     UNIQUE KEY ux_parking_device_site_number (sitenum, devicenum),
     INDEX ix_parking_device_lane (laneid),
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS parking_site_sync (
     sitenum BIGINT NOT NULL,
     authkeyhash CHAR(64) NOT NULL,
     configversion BIGINT NOT NULL DEFAULT 0,
-    updatedat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedat DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     PRIMARY KEY (sitenum),
     CONSTRAINT fk_parking_site_sync_site
         FOREIGN KEY (sitenum) REFERENCES parking_site(sitenum)
@@ -365,6 +365,17 @@ VALUES
 (9001,2,2,0,1,3,10,300,0)
 ON DUPLICATE KEY UPDATE
 parktime=VALUES(parktime),parkfee=VALUES(parkfee),maxcount=VALUES(maxcount);
+
+INSERT INTO tdiscount(sitenum,groupnum,`key`,type,value) VALUES
+(1,1,10,4,50),
+(1,1,20,1,30),
+(1,1,30,2,1000),
+(1,1,40,3,1000),
+(9001,2,10,4,50),
+(9001,2,20,1,30),
+(9001,2,30,2,1000),
+(9001,2,40,3,1000)
+ON DUPLICATE KEY UPDATE type=VALUES(type),value=VALUES(value);
 
 INSERT INTO tparkvariable(sitenum,groupnum,cmd_type,val,opt,msg)
 VALUES
