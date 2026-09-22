@@ -9,6 +9,13 @@ public interface IDisplayBoardOutput
         DateTimeOffset now,
         CancellationToken cancellationToken);
 
+    Task SendClockFromDeviceAsync(
+        long sourceDeviceId,
+        long siteId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken) =>
+        SendClockAsync(siteId, now, cancellationToken);
+
     Task SendAsync(
         LprRecognition recognition,
         FieldEventResponse response,
