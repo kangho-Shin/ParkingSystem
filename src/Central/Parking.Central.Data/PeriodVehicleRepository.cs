@@ -73,7 +73,7 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
                 (eventid,sitenum,groupnum,laneid,deviceid,eventtype,carnum,eventat,imagepath)
                 VALUES
                 (@EventId,@SiteId,@Groupnum,@LaneId,@DeviceId,@EventType,
-                 @CarNumber,@InDateTimeUtc,@InImage);
+                 @CarNumber,@InDateTimeLocal,@InImage);
                 """, new
             {
                 EventId = eventId,
@@ -83,7 +83,7 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
                 request.DeviceId,
                 request.EventType,
                 request.CarNumber,
-                InDateTimeUtc = request.InDateTime.UtcDateTime,
+                InDateTimeLocal = ParkingLocalTime.ToDatabase(request.InDateTime),
                 InImage = VehicleImageName.FileNameOnly(request.InImage)
             }, transaction, cancellationToken: cancellationToken));
 
@@ -112,7 +112,7 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
                      ineventid,inlaneid,indeviceid,indatetime,inimage,enddate,outflag)
                     VALUES
                     (@SiteId,@Groupnum,@MemberId,@CardId,@Name,@CarNumber,@CarType,
-                     @EventId,@LaneId,@DeviceId,@InDateTimeUtc,@InImage,@EndDate,'I');
+                     @EventId,@LaneId,@DeviceId,@InDateTimeLocal,@InImage,@EndDate,'I');
                     SELECT LAST_INSERT_ID();
                     """, new
                 {
@@ -126,7 +126,7 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
                     EventId = eventId,
                     request.LaneId,
                     request.DeviceId,
-                    InDateTimeUtc = request.InDateTime.UtcDateTime,
+                    InDateTimeLocal = ParkingLocalTime.ToDatabase(request.InDateTime),
                     InImage = VehicleImageName.FileNameOnly(request.InImage),
                     member.EndDate
                 }, transaction, cancellationToken: cancellationToken));
@@ -174,7 +174,7 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
             row.SiteId,
             row.Groupnum,
             row.CarNumber,
-            new DateTimeOffset(DateTime.SpecifyKind(row.InDateTime, DateTimeKind.Utc)),
+            ParkingLocalTime.FromDatabase(row.InDateTime),
             row.InImage,
             row.OutFlag);
     }
@@ -196,7 +196,7 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
                 (eventid,sitenum,groupnum,laneid,deviceid,eventtype,carnum,eventat,imagepath)
                 VALUES
                 (@EventId,@SiteId,@Groupnum,@LaneId,@DeviceId,@EventType,
-                 @CarNumber,@OutDateTimeUtc,@OutImage);
+                 @CarNumber,@OutDateTimeLocal,@OutImage);
                 """, new
             {
                 EventId = eventId,
@@ -206,7 +206,7 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
                 request.DeviceId,
                 request.EventType,
                 request.CarNumber,
-                OutDateTimeUtc = request.OutDateTime.UtcDateTime,
+                OutDateTimeLocal = ParkingLocalTime.ToDatabase(request.OutDateTime),
                 OutImage = VehicleImageName.FileNameOnly(request.OutImage)
             }, transaction, cancellationToken: cancellationToken));
 
@@ -223,8 +223,8 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
             await connection.ExecuteAsync(new CommandDefinition("""
                 UPDATE tperiodinout
                 SET outeventid=@EventId, outlaneid=@LaneId, outdeviceid=@DeviceId,
-                    outdatetime=@OutDateTimeUtc, outimage=@OutImage,
-                    parktime=GREATEST(TIMESTAMPDIFF(MINUTE,indatetime,@OutDateTimeUtc),0),
+                    outdatetime=@OutDateTimeLocal, outimage=@OutImage,
+                    parktime=GREATEST(TIMESTAMPDIFF(MINUTE,indatetime,@OutDateTimeLocal),0),
                     outflag='O'
                 WHERE xindex=@PeriodSessionId AND outflag<>'O';
                 """, new
@@ -232,7 +232,7 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
                 EventId = eventId,
                 request.LaneId,
                 request.DeviceId,
-                OutDateTimeUtc = request.OutDateTime.UtcDateTime,
+                OutDateTimeLocal = ParkingLocalTime.ToDatabase(request.OutDateTime),
                 OutImage = VehicleImageName.FileNameOnly(request.OutImage),
                 session.PeriodSessionId
             }, transaction, cancellationToken: cancellationToken));
