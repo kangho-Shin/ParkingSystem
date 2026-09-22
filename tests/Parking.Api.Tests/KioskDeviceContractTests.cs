@@ -36,6 +36,26 @@ public sealed class KioskDeviceContractTests
     }
 
     [Fact]
+    public async Task 수동정산_표시요청은_Kiosk_연결_전광판으로_전달한다()
+    {
+        FakeDeviceResolver resolver = new(new ParkingDevice(
+            2001, 9001, 9020, 201, "KIOSK", "출구무인", null, true));
+        FakeKioskExitCoordinator coordinator = new(null);
+        KioskEventController controller = new(coordinator, resolver);
+
+        IActionResult result = await controller.DisplayAsync(
+            new KioskDisplayRequest(
+                new KioskDeviceIdentity(9001, 2, 201),
+                "12가3456", "정산 완료되었습니다."),
+            CancellationToken.None);
+
+        Assert.IsType<OkResult>(result);
+        Assert.Equal(2001, coordinator.DeviceId);
+        Assert.Equal("12가3456", coordinator.CarNumber);
+        Assert.Equal("정산 완료되었습니다.", coordinator.DisplayMessage);
+    }
+
+    [Fact]
     public async Task 다른_Kiosk의_사건이면_NotFound를_반환한다()
     {
         FakeDeviceResolver resolver = new(new ParkingDevice(
@@ -82,12 +102,25 @@ public sealed class KioskDeviceContractTests
     {
         public long DeviceId { get; private set; }
         public Guid EventId { get; private set; }
+        public string? CarNumber { get; private set; }
+        public string? DisplayMessage { get; private set; }
         public Task<FieldEventResponse?> CompleteAsync(
             long kioskDeviceId, Guid eventId, CancellationToken cancellationToken)
         {
             DeviceId = kioskDeviceId;
             EventId = eventId;
             return Task.FromResult(response);
+        }
+
+        public Task DisplayAsync(
+            long kioskDeviceId, long siteId, int groupnum,
+            string carNumber, string displayMessage,
+            CancellationToken cancellationToken)
+        {
+            DeviceId = kioskDeviceId;
+            CarNumber = carNumber;
+            DisplayMessage = displayMessage;
+            return Task.CompletedTask;
         }
     }
 }
