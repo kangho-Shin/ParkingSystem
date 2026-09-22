@@ -65,4 +65,13 @@ public sealed class DisplayBoardProtocolTests
         Assert.False(state.ShouldSend(5001, now.AddSeconds(10)));
         Assert.True(state.ShouldSend(5001, now.AddSeconds(11)));
     }
+
+    [Fact]
+    public void 요금표시는_100초_표시시간을_패킷에_기록한다()
+    {
+        byte[] packet = DisplayBoardProtocol.CreateTwoLine(
+            "12가3456", "주차요금 1,200원", 100);
+
+        Assert.Equal(unchecked((byte)(0x30 + 100)), packet[4]);
+    }
 }
