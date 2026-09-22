@@ -31,26 +31,26 @@ public sealed partial class MainForm : Form
             ExitAt = _exitAt.Value,
             CarType = _carType.SelectedIndex + 1
         });
-        _result.Text =
-            $"사이트: {_siteNumber.Value}\r\n그룹: {_groupNumber.Value}\r\n" +
-            $"주차시간: {result.ParkingMinutes:N0}분\r\n" +
-            $"정상요금: {result.OriginalFee:N0}원\r\n" +
-            $"최종요금: {result.FinalFee:N0}원\r\n\r\n" +
-            "현재 단계는 임시 기본 요금설정을 사용합니다.";
+        _result.Text = $"사이트: {_siteNumber.Value}\r\n그룹: {_groupNumber.Value}\r\n" +
+                       $"주차시간: {result.ParkingMinutes:N0}분\r\n" +
+                       $"정상요금: {result.OriginalFee:N0}원\r\n" +
+                       $"최종요금: {result.FinalFee:N0}원\r\n\r\n" +
+                       "현재 단계는 임시 기본 요금설정을 사용합니다.";
     }
 
     private static ParkingFeeConfiguration CreateSampleConfiguration()
     {
         List<ParkingFeeRule> rules = new();
-        for (int weekType = 1; weekType <= 2; weekType++)
-        for (int carType = 1; carType <= 3; carType++)
-            rules.Add(new ParkingFeeRule { WeekType = weekType, CarType = carType, FeeStep = 1, UnitMinutes = 10, FeePerUnit = 500 });
 
+        for (int weekType = 1; weekType <= 2; weekType++) {
+            for (int carType = 1; carType <= 3; carType++)
+                rules.Add(new ParkingFeeRule { WeekType = weekType, CarType = carType, FeeStep = 1, UnitMinutes = 10, FeePerUnit = 500 });
+        }
         return new ParkingFeeConfiguration
         {
             FeeRules = rules,
             DayTimeRanges = Enum.GetValues<DayOfWeek>()
-                .ToDictionary(day => day, _ => new DayTimeRange(TimeSpan.Zero, TimeSpan.FromHours(24)))
+                                .ToDictionary(day => day, _ => new DayTimeRange(TimeSpan.Zero, TimeSpan.FromHours(24)))
         };
     }
 
