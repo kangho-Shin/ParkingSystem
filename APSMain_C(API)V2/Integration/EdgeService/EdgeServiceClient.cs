@@ -99,8 +99,9 @@ public sealed class EdgeServiceClient
         }
     }
 
-    public async Task<EdgeCallResult<bool>> DisplaySettlementCompletedAsync(
+    public async Task<EdgeCallResult<bool>> DisplayFeeAsync(
         string carNumber,
+        long payableAmount,
         CancellationToken token = default)
     {
         string json = JsonConvert.SerializeObject(new
@@ -112,7 +113,8 @@ public sealed class EdgeServiceClient
                 _options.Devicenum
             },
             CarNumber = carNumber,
-            DisplayMessage = "정산 완료되었습니다."
+            DisplayMessage = $"주차요금 {payableAmount:N0}원",
+            DisplaySeconds = 100
         });
         try
         {
@@ -133,6 +135,56 @@ public sealed class EdgeServiceClient
         catch (HttpRequestException ex)
         {
             return EdgeCallResult<bool>.Failed(EdgeCallStatus.TransientFailure, ex.Message);
+        }
+    }
+
+    public async Task<EdgeCallResult<bool>> CompleteManualExitAsync(
+        string carNumber,
+        DateTimeOffset exitAt,
+        CancellationToken token = default)
+    {
+        string json = JsonConvert.SerializeObject(new
+        {
+            Device = new
+            {
+                _options.Sitenum,
+                _options.Groupnum,
+                _options.Devicenum
+            },
+            CarNumber = carNumber,
+            ExitAt = exitAt
+        });
+        try
+        {
+            using HttpResponseMessage response = await _http.PostAsync(
+                "api/v1/local/kiosks/manual-exit/complete",
+                new StringContent(json, Encoding.UTF8, "application/json"), token);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+                return EdgeCallResult<bool>.Failed(EdgeCallStatus.Failure, "연결된 출차 LPR을 찾을 수 없습니다.");
+            if (response.StatusCode == HttpStatusCode.ServiceUnavailable || response.StatusCode == HttpStatusCode.GatewayTimeout)
+                return EdgeCallResult<bool>.Failed(EdgeCallStatus.TransientFailure, "출차 완료 서버에 연결할 수 없습니다.");
+            if (!response.IsSuccessStatusCode)
+                return EdgeCallResult<bool>.Failed(EdgeCallStatus.Failure, $"출차 완료 응답 오류: {(int)response.StatusCode}");
+
+            JObject body = JObject.Parse(await response.Content.ReadAsStringAsync(token));
+            bool accepted = body.Value<bool?>("Accepted") ?? body.Value<bool?>("accepted") ?? false;
+            return accepted
+                ? EdgeCallResult<bool>.Success(true)
+                : EdgeCallResult<bool>.Failed(
+                    EdgeCallStatus.Failure,
+                    body.Value<string>("DisplayMessage") ?? body.Value<string>("displayMessage") ?? "출차가 승인되지 않았습니다.");
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        {
+            return EdgeCallResult<bool>.Failed(EdgeCallStatus.TransientFailure, "출차 완료 응답 시간이 초과되었습니다.");
+        }
+        catch (HttpRequestException ex)
+        {
+            return EdgeCallResult<bool>.Failed(EdgeCallStatus.TransientFailure, ex.Message);
+        }
+        catch (JsonException ex)
+        {
+            return EdgeCallResult<bool>.Failed(EdgeCallStatus.InvalidResponse, ex.Message);
         }
     }
 
