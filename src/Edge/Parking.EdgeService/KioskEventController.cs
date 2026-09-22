@@ -39,4 +39,31 @@ public sealed class KioskEventController : ControllerBase
             return NotFound();
         }
     }
+
+    [HttpPost("display")]
+    public async Task<IActionResult> DisplayAsync(
+        [FromBody] KioskDisplayRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.Device is null || request.Device.Sitenum <= 0 || request.Device.Groupnum <= 0 ||
+            request.Device.Devicenum <= 0 || string.IsNullOrWhiteSpace(request.CarNumber) ||
+            string.IsNullOrWhiteSpace(request.DisplayMessage))
+            return BadRequest();
+        try
+        {
+            ParkingDevice kiosk = await _resolver.ResolveAsync(
+                new EdgeDeviceIdentity(
+                    request.Device.Sitenum, request.Device.Groupnum,
+                    request.Device.Devicenum, "KIOSK"),
+                cancellationToken);
+            await _coordinator.DisplayAsync(
+                kiosk.DeviceId, request.Device.Sitenum, request.Device.Groupnum,
+                request.CarNumber, request.DisplayMessage, cancellationToken);
+            return Ok();
+        }
+        catch (DeviceIdentityException)
+        {
+            return NotFound();
+        }
+    }
 }
