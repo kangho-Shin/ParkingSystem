@@ -80,11 +80,14 @@ public sealed class EdgeParkCalSession
 
     public async Task<bool> CompleteExitAsync(CancellationToken token = default)
     {
-        if (_exitCompleted || !_context.IsEventDriven) return true;
-        EdgeCallResult<bool> result = await _client.CompleteKioskEventAsync(
-            _context.Notification.EventId, token);
+        if (_exitCompleted) return true;
+        EdgeCallResult<bool> result = _context.IsEventDriven
+            ? await _client.CompleteKioskEventAsync(_context.Notification.EventId, token)
+            : await _client.DisplaySettlementCompletedAsync(Quote.CarNumber, token);
         _exitCompleted = result.IsSuccess;
-        LastError = _exitCompleted ? null : result.Error ?? "출차사건 완료 처리에 실패했습니다.";
+        LastError = _exitCompleted
+            ? null
+            : result.Error ?? "정산완료 전광판 처리에 실패했습니다.";
         return _exitCompleted;
     }
 }
