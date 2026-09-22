@@ -4,6 +4,11 @@ namespace Parking.EdgeService;
 
 public interface IDisplayBoardOutput
 {
+    Task SendClockAsync(
+        long siteId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
+
     Task SendAsync(
         LprRecognition recognition,
         FieldEventResponse response,

@@ -38,6 +38,30 @@ public static class DisplayBoardProtocol
         return packet.ToArray();
     }
 
+    public static byte[] CreateClockLine(DateTime now)
+    {
+        string text = now.Hour >= 12
+            ? $"^YPM     {now:HH:mm}"
+            : $"^YAM     {now:HH:mm}";
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        Encoding encoding = Encoding.GetEncoding(949);
+        List<byte> packet = new(64)
+        {
+            0x02, 0xFF, 0x1B, (byte)'I', unchecked((byte)(0x30 + 100)),
+            (byte)'M', (byte)'0', (byte)'2', (byte)'0'
+        };
+        packet.AddRange(encoding.GetBytes(text));
+        packet.Add(0xFF);
+        packet.Add(0x00);
+        packet.Add(0x03);
+        for (int index = 0; index < packet.Count - 2; index++)
+            if (packet[index] == (byte)'^') packet[index] = 0x10;
+        byte checksum = 0;
+        for (int index = 0; index < packet.Count - 2; index++) checksum ^= packet[index];
+        packet[^2] = checksum;
+        return packet.ToArray();
+    }
+
     private static byte ScrollFlag(string text) =>
         GetDisplayLength(text) > 12 ? (byte)'1' : (byte)'0';
 

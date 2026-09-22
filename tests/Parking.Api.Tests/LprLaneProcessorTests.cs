@@ -164,6 +164,8 @@ public sealed class LprLaneProcessorTests
     {
         public LprRecognition? Recognition { get; private set; }
         public FieldEventResponse? Response { get; private set; }
+        public Task SendClockAsync(long siteId, DateTimeOffset now, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
 
         public Task SendAsync(
             LprRecognition recognition,

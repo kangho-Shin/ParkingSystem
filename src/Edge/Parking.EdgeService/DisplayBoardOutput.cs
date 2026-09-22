@@ -9,6 +9,7 @@ public sealed class DisplayBoardOutput : IDisplayBoardOutput, IAsyncDisposable
     private readonly LocalConfigurationStore _configurationStore;
     private readonly ILogger<DisplayBoardOutput> _logger;
     private readonly ConcurrentDictionary<long, DisplayBoardConnection> _connections = new();
+    private readonly DisplayBoardClockState _clockState = new();
 
     public DisplayBoardOutput(
         LocalConfigurationStore configurationStore,
@@ -16,6 +17,39 @@ public sealed class DisplayBoardOutput : IDisplayBoardOutput, IAsyncDisposable
     {
         _configurationStore = configurationStore;
         _logger = logger;
+    }
+
+    public async Task SendClockAsync(
+        long siteId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        SiteConfiguration? configuration = await _configurationStore.GetAsync(
+            siteId, cancellationToken);
+        if (configuration is null) return;
+        foreach (ParkingDevice display in configuration.Devices.Where(x =>
+            x.Enabled && string.Equals(x.DeviceType, "LDM", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(x.IpAddress) && x.Port is not null))
+        {
+            if (!_clockState.ShouldSend(display.DeviceId, now)) continue;
+            DisplayBoardConnection connection = GetConnection(display);
+            try
+            {
+                await connection.SendAsync(
+                    DisplayBoardProtocol.CreateClockLine(now.LocalDateTime), cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                connection.Close();
+                _clockState.Reset(display.DeviceId);
+                _logger.LogWarning(exception,
+                    "전광판 시계 전송 실패: DeviceId={DeviceId}", display.DeviceId);
+            }
+        }
     }
 
     public async Task SendAsync(
@@ -44,10 +78,7 @@ public sealed class DisplayBoardOutput : IDisplayBoardOutput, IAsyncDisposable
             return;
         }
 
-        DisplayBoardConnection connection = _connections.AddOrUpdate(
-            display.DeviceId,
-            _ => new DisplayBoardConnection(display.IpAddress, display.Port.Value),
-            (_, current) => ReplaceIfChanged(current, display.IpAddress, display.Port.Value));
+        DisplayBoardConnection connection = GetConnection(display);
         try
         {
             await connection.SendAsync(
@@ -58,6 +89,7 @@ public sealed class DisplayBoardOutput : IDisplayBoardOutput, IAsyncDisposable
                 await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
                 await connection.SendAsync(DisplayBoardProtocol.GateOpen.ToArray(), cancellationToken);
             }
+            _clockState.Suppress(display.DeviceId, DateTimeOffset.Now, TimeSpan.FromSeconds(11));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -71,6 +103,12 @@ public sealed class DisplayBoardOutput : IDisplayBoardOutput, IAsyncDisposable
                 display.DeviceId, recognition.LaneId);
         }
     }
+
+    private DisplayBoardConnection GetConnection(ParkingDevice display) =>
+        _connections.AddOrUpdate(
+            display.DeviceId,
+            _ => new DisplayBoardConnection(display.IpAddress!, display.Port!.Value),
+            (_, current) => ReplaceIfChanged(current, display.IpAddress!, display.Port!.Value));
 
     private static DisplayBoardConnection ReplaceIfChanged(
         DisplayBoardConnection current, string host, int port)

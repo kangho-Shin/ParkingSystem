@@ -50,6 +50,7 @@ namespace Parking.EdgeService
             builder.Services.AddScoped<LprLaneProcessor>();
             builder.Services.AddHostedService<OutboxWorker>();
             builder.Services.AddHostedService<ConfigurationSyncWorker>();
+            builder.Services.AddHostedService<DisplayBoardClockWorker>();
             builder.Services.AddHostedService<LprTcpWorker>();
 
             WebApplication app = builder.Build();
