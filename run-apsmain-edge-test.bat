@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 
-if "%PARKING_RUNTIME_CONNECTION%"=="" set "PARKING_RUNTIME_CONNECTION=server=localhost;port=3306;uid=;pwd=;database=parking000test;Charset=utf8mb4;SslMode=none;"
+if "%PARKING_RUNTIME_CONNECTION%"=="" set "PARKING_RUNTIME_CONNECTION=server=localhost;port=3306;uid=test;pwd=test;database=parking000test;Charset=utf8mb4;SslMode=none;"
 echo %PARKING_RUNTIME_CONNECTION% | findstr /i "database=parking000test" >nul
 if errorlevel 1 (
   echo PARKING_RUNTIME_CONNECTION must use database=parking000test.

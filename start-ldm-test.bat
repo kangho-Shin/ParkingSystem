@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 if not defined PARKING_RUNTIME_CONNECTION (
     echo PARKING_RUNTIME_CONNECTION is not set.
-    echo Example: set PARKING_RUNTIME_CONNECTION=Server=localhost;Database=parking000test;User ID=root;Password=your_password
+    echo Example: set PARKING_RUNTIME_CONNECTION=Server=localhost;Database=parking000test;User ID=test;Password=test
     pause
     exit /b 1
 )

@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 
-if not defined PARKING_RUNTIME_CONNECTION set "PARKING_RUNTIME_CONNECTION=server=localhost;port=3306;uid=;pwd=;database=parking000test;Charset=utf8mb4;SslMode=none;"
+if not defined PARKING_RUNTIME_CONNECTION set "PARKING_RUNTIME_CONNECTION=server=localhost;port=3306;uid=test;pwd=test;database=parking000test;Charset=utf8mb4;SslMode=none;"
 powershell -NoProfile -Command "if ($env:PARKING_RUNTIME_CONNECTION -notmatch '(?i)(^|;)\s*(database|initial catalog)\s*=\s*parking000test\s*(;|$)') { exit 1 }"
 if errorlevel 1 (
   echo PARKING_RUNTIME_CONNECTION must use database=parking000test.
