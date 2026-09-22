@@ -17,7 +17,7 @@ public sealed class ParkingSearchRepositoryTests
     public async Task 뒤4자리_조회는_같은그룹_미출차차량을_최신순으로_반환한다()
     {
         await ClearTablesAsync();
-        DateTime baseTime = DateTime.UtcNow.AddHours(-3);
+        DateTime baseTime = ParkingLocalTime.ToDatabase(DateTimeOffset.UtcNow.AddHours(-3));
         long firstId = await CreateSessionAsync("12가3456", 2, "IN-1.jpg", baseTime, "I");
         long secondId = await CreateSessionAsync("34나3456", 2, "IN-2.jpg", baseTime.AddHours(1), "I");
         await CreateSessionAsync("56다3456", 3, "OTHER-GROUP.jpg", baseTime.AddHours(2), "I");
