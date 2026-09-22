@@ -15,5 +15,14 @@ public interface IKioskExitCoordinator
         int groupnum,
         string carNumber,
         string displayMessage,
+        int displaySeconds,
+        CancellationToken cancellationToken);
+
+    Task<FieldEventResponse?> CompleteManualAsync(
+        long kioskDeviceId,
+        long siteId,
+        int groupnum,
+        string carNumber,
+        DateTimeOffset exitAt,
         CancellationToken cancellationToken);
 }
