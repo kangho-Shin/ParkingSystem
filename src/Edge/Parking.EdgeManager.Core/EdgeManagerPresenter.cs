@@ -107,6 +107,8 @@ public sealed class EdgeManagerPresenter : IDisposable
             if (!token.IsCancellationRequested) _view.ShowImages(inImage, null);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (TaskCanceledException) { }
+        catch (HttpRequestException) { }
     }
 
     private async Task ShowActivityAsync(
@@ -123,6 +125,8 @@ public sealed class EdgeManagerPresenter : IDisposable
                 _view.ShowImages(await inTask, await outTask);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (TaskCanceledException) { }
+        catch (HttpRequestException) { }
     }
 
     private CancellationToken BeginImageRequest(CancellationToken cancellationToken)
