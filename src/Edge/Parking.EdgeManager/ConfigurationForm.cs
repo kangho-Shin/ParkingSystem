@@ -121,8 +121,16 @@ public sealed partial class ConfigurationForm : Form
             AllowUserToAddRows = false,
             AllowUserToDeleteRows = false,
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+            EditMode = DataGridViewEditMode.EditOnEnter,
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             MultiSelect = false
+        };
+        grid.CurrentCellDirtyStateChanged += (_, _) =>
+        {
+            if (ConfigurationEditPolicy.ShouldCommit(
+                    grid.IsCurrentCellDirty,
+                    grid.CurrentCell is DataGridViewCheckBoxCell))
+                grid.CommitEdit(DataGridViewDataErrorContexts.Commit);
         };
         FlowLayoutPanel buttons = new()
         {
@@ -170,7 +178,12 @@ public sealed partial class ConfigurationForm : Form
         bool removeAfterSuccess)
     {
         if (grid.CurrentRow?.DataBoundItem is not DataRowView view) return;
+        if (ConfigurationEditPolicy.ShouldCommit(
+                grid.IsCurrentCellDirty,
+                grid.CurrentCell is DataGridViewCheckBoxCell))
+            grid.CommitEdit(DataGridViewDataErrorContexts.Commit);
         grid.EndEdit();
+        view.EndEdit();
         try
         {
             await action(view.Row);
