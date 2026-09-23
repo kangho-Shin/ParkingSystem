@@ -41,7 +41,7 @@ namespace APSMain
         private volatile bool _isClosing;
         private int _formGeneration;
         private int _AutoCancleTime = 0;
-        private bool EdgeServiceEnabled => ConfigurationManager.AppSettings["EDGESERVICEUSE"] == "true";
+        private bool EdgeServiceEnabled => true;
 
         public CarInNumForm15(bool periodtype)
         {

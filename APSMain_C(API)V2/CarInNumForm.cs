@@ -36,7 +36,7 @@ namespace APSMain
         private string _inCarNum = string.Empty;
         private bool _parentZoom = false;
         private bool _periodtype = false;
-        private bool EdgeServiceEnabled => ConfigurationManager.AppSettings["EDGESERVICEUSE"] == "true";
+        private bool EdgeServiceEnabled => true;
 
         public CarInNumForm(bool periodtype)
         {

@@ -17,7 +17,8 @@ public sealed class EdgeServiceFormBridge : IAsyncDisposable
         EdgeServiceOptions options = EdgeServiceOptions.Load(ConfigurationManager.AppSettings);
         _http = new HttpClient { BaseAddress = options.BaseAddress };
         Client = new EdgeServiceClient(_http, options);
-        _coordinator = new KioskExitCoordinator(Client, new KioskEventTracker());
+        _coordinator = new KioskExitCoordinator(
+            Client, new KioskEventTracker(), options);
         _signalR = new KioskSignalRClient(options);
         _signalR.ExitVehicleDetected += OnExitVehicleDetectedAsync;
         _signalR.Log += message => Log?.Invoke(message);

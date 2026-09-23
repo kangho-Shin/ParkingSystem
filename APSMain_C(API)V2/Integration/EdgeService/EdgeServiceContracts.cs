@@ -5,6 +5,16 @@ public sealed record KioskExitNotification(
     string CarNumber, DateTimeOffset OutDateTime, string? OutImage,
     string? ResultCode = null, string? DisplayMessage = null, bool? OpenBarrier = null);
 
+public sealed class KioskEventCompletionResponse
+{
+    public Guid EventId { get; set; }
+    public bool Accepted { get; set; }
+    public long? ParkingSessionId { get; set; }
+    public string ResultCode { get; set; } = "";
+    public string DisplayMessage { get; set; } = "";
+    public bool OpenBarrier { get; set; }
+}
+
 public sealed record ParkingSearchCandidate(
     long ParkingSessionId, string CarNumber, int Groupnum, int CarType,
     DateTimeOffset InDateTime, string? InImage);

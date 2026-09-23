@@ -111,7 +111,7 @@ namespace APSMain
             }
         }
         private bool _edgeClosing;
-        private bool EdgeServiceEnabled => ConfigurationManager.AppSettings["EDGESERVICEUSE"] == "true";
+        private bool EdgeServiceEnabled => true;
 
         public MainForm15()
         {

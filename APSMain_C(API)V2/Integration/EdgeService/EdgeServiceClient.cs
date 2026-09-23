@@ -78,16 +78,29 @@ public sealed class EdgeServiceClient
         try
         {
             using HttpResponseMessage response = await _http.PostAsync(
-                $"api/v1/local/kiosks/events/{eventId}/complete",
+                $"api/v1/local/kiosks/events/{eventId:N}/complete",
                 new StringContent(json, Encoding.UTF8, "application/json"),
                 token);
             if (response.StatusCode == HttpStatusCode.NotFound)
                 return EdgeCallResult<bool>.Failed(EdgeCallStatus.Failure, "완료할 출차 사건을 찾을 수 없습니다.");
             if (response.StatusCode == HttpStatusCode.ServiceUnavailable || response.StatusCode == HttpStatusCode.GatewayTimeout)
                 return EdgeCallResult<bool>.Failed(EdgeCallStatus.TransientFailure, "EdgeService에 연결할 수 없습니다.");
-            return response.IsSuccessStatusCode
+            if (!response.IsSuccessStatusCode)
+                return EdgeCallResult<bool>.Failed(
+                    EdgeCallStatus.Failure, $"출차 완료 응답 오류: {(int)response.StatusCode}");
+
+            KioskEventCompletionResponse? result = JsonConvert.DeserializeObject<KioskEventCompletionResponse>(
+                await response.Content.ReadAsStringAsync(token));
+            if (result is null || result.EventId != eventId || string.IsNullOrWhiteSpace(result.ResultCode))
+                return EdgeCallResult<bool>.Failed(
+                    EdgeCallStatus.InvalidResponse, "출차 완료 응답 EventId 또는 필수값이 올바르지 않습니다.");
+            return result.Accepted
                 ? EdgeCallResult<bool>.Success(true)
-                : EdgeCallResult<bool>.Failed(EdgeCallStatus.Failure, $"출차 완료 응답 오류: {(int)response.StatusCode}");
+                : EdgeCallResult<bool>.Failed(
+                    EdgeCallStatus.Failure,
+                    string.IsNullOrWhiteSpace(result.DisplayMessage)
+                        ? result.ResultCode
+                        : result.DisplayMessage);
         }
         catch (OperationCanceledException) when (!token.IsCancellationRequested)
         {
@@ -96,6 +109,10 @@ public sealed class EdgeServiceClient
         catch (HttpRequestException ex)
         {
             return EdgeCallResult<bool>.Failed(EdgeCallStatus.TransientFailure, ex.Message);
+        }
+        catch (JsonException ex)
+        {
+            return EdgeCallResult<bool>.Failed(EdgeCallStatus.InvalidResponse, ex.Message);
         }
     }
 
@@ -121,6 +138,10 @@ public sealed class EdgeServiceClient
             using HttpResponseMessage response = await _http.PostAsync(
                 "api/v1/local/kiosks/display",
                 new StringContent(json, Encoding.UTF8, "application/json"), token);
+            if (response.StatusCode == HttpStatusCode.ServiceUnavailable ||
+                response.StatusCode == HttpStatusCode.GatewayTimeout)
+                return EdgeCallResult<bool>.Failed(
+                    EdgeCallStatus.TransientFailure, "전광판 표시 서버에 연결할 수 없습니다.");
             return response.IsSuccessStatusCode
                 ? EdgeCallResult<bool>.Success(true)
                 : EdgeCallResult<bool>.Failed(
@@ -202,6 +223,10 @@ public sealed class EdgeServiceClient
             using HttpResponseMessage response = await _http.PostAsync(
                 "api/v1/local/kiosks/display/reset",
                 new StringContent(json, Encoding.UTF8, "application/json"), token);
+            if (response.StatusCode == HttpStatusCode.ServiceUnavailable ||
+                response.StatusCode == HttpStatusCode.GatewayTimeout)
+                return EdgeCallResult<bool>.Failed(
+                    EdgeCallStatus.TransientFailure, "전광판 초기화 서버에 연결할 수 없습니다.");
             return response.IsSuccessStatusCode
                 ? EdgeCallResult<bool>.Success(true)
                 : EdgeCallResult<bool>.Failed(
@@ -247,7 +272,9 @@ public sealed class EdgeServiceClient
     {
         try
         {
-            string json = JsonConvert.SerializeObject(request);
+            JObject payload = JObject.FromObject(request);
+            payload[nameof(request.PaymentId)] = request.PaymentId.ToString("N");
+            string json = payload.ToString(Formatting.None);
             using HttpResponseMessage response = await _http.PostAsync(
                 "api/v1/local/payments/complete",
                 new StringContent(json, Encoding.UTF8, "application/json"), token);
@@ -256,10 +283,35 @@ public sealed class EdgeServiceClient
                 return EdgeCallResult<EdgePaymentResponse>.Failed(EdgeCallStatus.TransientFailure, "결제결과가 EdgeService 전송 대기 상태입니다.");
             if (!response.IsSuccessStatusCode)
                 return EdgeCallResult<EdgePaymentResponse>.Failed(EdgeCallStatus.Failure, $"결제완료 오류: {(int)response.StatusCode}");
-            EdgePaymentResponse? result = JsonConvert.DeserializeObject<EdgePaymentResponse>(body);
-            return result is null || !result.Accepted
-                ? EdgeCallResult<EdgePaymentResponse>.Failed(EdgeCallStatus.InvalidResponse, result?.Message ?? "결제완료 응답이 비어 있습니다.")
-                : EdgeCallResult<EdgePaymentResponse>.Success(result);
+            JObject responseBody = JObject.Parse(body);
+            string? resultCode = responseBody.Value<string>(nameof(EdgePaymentResponse.ResultCode));
+            bool accepted = responseBody.Value<bool?>(nameof(EdgePaymentResponse.Accepted)) ?? false;
+            if (response.StatusCode == HttpStatusCode.Accepted &&
+                accepted &&
+                string.Equals(resultCode, "PAYMENT_PENDING_SYNC", StringComparison.Ordinal))
+            {
+                return EdgeCallResult<EdgePaymentResponse>.Success(new EdgePaymentResponse
+                {
+                    PaymentId = request.PaymentId,
+                    ParkingSessionId = request.ParkingSessionId,
+                    Accepted = true,
+                    ResultCode = resultCode,
+                    Message = responseBody.Value<string>(nameof(EdgePaymentResponse.Message)) ?? "",
+                    ExitAllowed = false
+                });
+            }
+
+            EdgePaymentResponse? result = responseBody.ToObject<EdgePaymentResponse>();
+            if (result is null || result.PaymentId != request.PaymentId ||
+                result.ParkingSessionId != request.ParkingSessionId ||
+                string.IsNullOrWhiteSpace(result.ResultCode))
+                return EdgeCallResult<EdgePaymentResponse>.Failed(
+                    EdgeCallStatus.InvalidResponse, "결제완료 응답 ID 또는 필수값이 올바르지 않습니다.");
+            return result.Accepted
+                ? EdgeCallResult<EdgePaymentResponse>.Success(result)
+                : EdgeCallResult<EdgePaymentResponse>.Failed(
+                    EdgeCallStatus.Failure,
+                    string.IsNullOrWhiteSpace(result.Message) ? result.ResultCode : result.Message);
         }
         catch (OperationCanceledException) when (!token.IsCancellationRequested)
         {
