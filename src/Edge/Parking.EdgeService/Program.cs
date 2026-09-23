@@ -13,11 +13,9 @@ namespace Parking.EdgeService
             builder.Services.AddSignalR();
 
             string? configuredDataDirectory = builder.Configuration["Edge:DataDirectory"];
-            string dataDirectory = string.IsNullOrWhiteSpace(configuredDataDirectory)
-                ? (Environment.UserInteractive
-                    ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ParkingSystem")
-                    : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ParkingSystem"))
-                : configuredDataDirectory;
+            string dataDirectory = EdgeDataDirectory.Resolve(
+                configuredDataDirectory,
+                AppContext.BaseDirectory);
             Directory.CreateDirectory(dataDirectory);
             string sqliteConnectionString = $"Data Source={Path.Combine(dataDirectory, "edge.db")}";
 
