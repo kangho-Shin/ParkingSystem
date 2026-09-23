@@ -114,6 +114,7 @@ public sealed partial class ConfigurationForm : Form
         Func<DataRow, Task> save,
         Func<DataRow, Task>? delete)
     {
+        table.AcceptChanges();
         DataGridView grid = new()
         {
             Dock = DockStyle.Fill,
@@ -139,15 +140,15 @@ public sealed partial class ConfigurationForm : Form
             FlowDirection = FlowDirection.RightToLeft,
             Padding = new Padding(5)
         };
-        Button saveButton = new() { Text = "저장", AutoSize = true };
-        saveButton.Click += async (_, _) => await ExecuteAsync(grid, save, false);
+        Button saveButton = new() { Text = "전체 변경 저장", AutoSize = true };
+        saveButton.Click += async (_, _) => await SaveChangedRowsAsync(grid, table, save, saveButton);
         buttons.Controls.Add(saveButton);
         if (allowAddDelete)
         {
             Button deleteButton = new() { Text = "삭제", AutoSize = true };
             deleteButton.Click += async (_, _) =>
             {
-                if (delete is not null) await ExecuteAsync(grid, delete, true);
+                if (delete is not null) await ExecuteSelectedRowAsync(grid, delete, true);
             };
             Button addButton = new() { Text = "추가", AutoSize = true };
             addButton.Click += (_, _) =>
@@ -172,28 +173,75 @@ public sealed partial class ConfigurationForm : Form
         _tabs.TabPages.Add(page);
     }
 
-    private static async Task ExecuteAsync(
+    private static async Task SaveChangedRowsAsync(
+        DataGridView grid,
+        DataTable table,
+        Func<DataRow, Task> save,
+        Button saveButton)
+    {
+        CommitPendingEdit(grid);
+        DataRow[] rows = table.Rows.Cast<DataRow>()
+            .Where(row => ConfigurationEditPolicy.ShouldSave(row.RowState))
+            .ToArray();
+        if (rows.Length == 0)
+        {
+            MessageBox.Show("변경된 내용이 없습니다.", "현장 설정",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        int savedCount = 0;
+        saveButton.Enabled = false;
+        try
+        {
+            foreach (DataRow row in rows)
+            {
+                await save(row);
+                row.AcceptChanges();
+                savedCount++;
+            }
+            MessageBox.Show($"변경된 {savedCount}개 행을 저장했습니다.", "현장 설정",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception exception)
+        {
+            string saved = savedCount == 0 ? "" : $"{savedCount}개 행 저장 후 중단되었습니다.\r\n";
+            MessageBox.Show($"{saved}처리하지 못했습니다.\r\n{exception.Message}", "현장 설정",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            saveButton.Enabled = true;
+        }
+    }
+
+    private static async Task ExecuteSelectedRowAsync(
         DataGridView grid,
         Func<DataRow, Task> action,
         bool removeAfterSuccess)
     {
         if (grid.CurrentRow?.DataBoundItem is not DataRowView view) return;
-        if (ConfigurationEditPolicy.ShouldCommit(
-                grid.IsCurrentCellDirty,
-                grid.CurrentCell is DataGridViewCheckBoxCell))
-            grid.CommitEdit(DataGridViewDataErrorContexts.Commit);
-        grid.EndEdit();
-        view.EndEdit();
+        CommitPendingEdit(grid);
         try
         {
             await action(view.Row);
             if (removeAfterSuccess) view.Row.Delete();
-            MessageBox.Show("저장되었습니다.", "현장 설정", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("처리되었습니다.", "현장 설정", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (Exception exception)
         {
             MessageBox.Show($"처리하지 못했습니다.\r\n{exception.Message}", "현장 설정", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private static void CommitPendingEdit(DataGridView grid)
+    {
+        if (ConfigurationEditPolicy.ShouldCommit(
+                grid.IsCurrentCellDirty,
+                grid.CurrentCell is DataGridViewCheckBoxCell))
+            grid.CommitEdit(DataGridViewDataErrorContexts.Commit);
+        grid.EndEdit();
+        if (grid.CurrentRow?.DataBoundItem is DataRowView view) view.EndEdit();
     }
 
     private static DataTable CreateTable(params (string Name, Type Type)[] columns)
