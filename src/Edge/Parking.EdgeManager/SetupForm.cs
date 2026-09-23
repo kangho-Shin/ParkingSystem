@@ -21,6 +21,7 @@ public sealed partial class SetupForm : Form
         {
             _siteId.Value = current.SiteId;
             _centralServerUrl.Text = current.CentralServerUrl;
+            _parkingApiUrl.Text = current.ParkingApiUrl;
             _imageServerUrl.Text = current.ImageServerUrl;
             _imageWatchPath.Text = current.ImageWatchPath;
         }
@@ -28,7 +29,8 @@ public sealed partial class SetupForm : Form
 
     private async void SaveButtonClick(object? sender, EventArgs e)
     {
-        if (!IsHttpUrl(_centralServerUrl.Text) || !IsHttpUrl(_imageServerUrl.Text))
+        if (!IsHttpUrl(_centralServerUrl.Text) || !IsHttpUrl(_parkingApiUrl.Text) ||
+            !IsHttpUrl(_imageServerUrl.Text))
         {
             MessageBox.Show("서버 주소는 http:// 또는 https:// 주소로 입력하세요.", "설정", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
@@ -50,6 +52,7 @@ public sealed partial class SetupForm : Form
             await _client.SaveSetupAsync(new EdgeSetupRequest(
                 decimal.ToInt64(_siteId.Value),
                 _centralServerUrl.Text.Trim(),
+                _parkingApiUrl.Text.Trim(),
                 _imageServerUrl.Text.Trim(),
                 _imageWatchPath.Text.Trim(),
                 _siteAuthKey.Text.Trim()), CancellationToken.None);

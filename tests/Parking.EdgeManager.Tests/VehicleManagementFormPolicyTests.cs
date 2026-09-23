@@ -42,6 +42,18 @@ public sealed class VehicleManagementFormPolicyTests
     public void 중앙연결정보가_없으면_관리버튼만_비활성화한다() =>
         Assert.False(VehicleManagementFormPolicy.ManagementEnabled(null));
 
+    [Fact]
+    public void 차량관리는_ParkingApi주소가_있을때_활성화한다()
+    {
+        CentralConnectionResponse connection = new(
+            9001,
+            "http://localhost:5100/",
+            "http://localhost:5000/",
+            "test-key");
+
+        Assert.True(VehicleManagementFormPolicy.ManagementEnabled(connection));
+    }
+
     private static SiteConfiguration Configuration() => new(
         new ParkingSite(9001, "시험현장", true),
         [

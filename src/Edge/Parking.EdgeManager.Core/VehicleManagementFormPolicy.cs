@@ -37,6 +37,7 @@ public static class VehicleManagementFormPolicy
 
     public static bool ManagementEnabled(CentralConnectionResponse? connection) =>
         connection is not null && connection.SiteId > 0 &&
-        Uri.TryCreate(connection.CentralServerUrl, UriKind.Absolute, out _) &&
+        Uri.TryCreate(connection.ParkingApiUrl, UriKind.Absolute, out Uri? uri) &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
         !string.IsNullOrWhiteSpace(connection.SiteAuthKey);
 }

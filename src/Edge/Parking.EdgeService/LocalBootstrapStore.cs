@@ -20,6 +20,7 @@ public sealed class LocalBootstrapStore
                 bootstrap_id INTEGER NOT NULL PRIMARY KEY CHECK(bootstrap_id = 1),
                 site_id INTEGER NOT NULL,
                 central_server_url TEXT NOT NULL,
+                parking_api_url TEXT NOT NULL DEFAULT 'http://localhost:5000/',
                 image_server_url TEXT NOT NULL,
                 image_watch_path TEXT NOT NULL DEFAULT '',
                 site_auth_key TEXT NOT NULL,
@@ -38,6 +39,10 @@ public sealed class LocalBootstrapStore
             await connection.ExecuteAsync(new CommandDefinition(
                 "ALTER TABLE edge_bootstrap ADD COLUMN image_watch_path TEXT NOT NULL DEFAULT '';",
                 cancellationToken: cancellationToken));
+        if (!columns.Any(x => string.Equals(x, "parking_api_url", StringComparison.OrdinalIgnoreCase)))
+            await connection.ExecuteAsync(new CommandDefinition(
+                "ALTER TABLE edge_bootstrap ADD COLUMN parking_api_url TEXT NOT NULL DEFAULT 'http://localhost:5000/';",
+                cancellationToken: cancellationToken));
     }
 
     public async Task<EdgeBootstrapSettings?> GetAsync(
@@ -46,6 +51,7 @@ public sealed class LocalBootstrapStore
         const string sql = """
             SELECT site_id SiteId,
                    central_server_url CentralServerUrl,
+                   parking_api_url ParkingApiUrl,
                    image_server_url ImageServerUrl,
                    image_watch_path ImageWatchPath,
                    site_auth_key SiteAuthKey,
@@ -63,6 +69,7 @@ public sealed class LocalBootstrapStore
             : new EdgeBootstrapSettings(
                 row.SiteId,
                 row.CentralServerUrl,
+                row.ParkingApiUrl,
                 row.ImageServerUrl,
                 row.ImageWatchPath,
                 row.SiteAuthKey,
@@ -79,12 +86,13 @@ public sealed class LocalBootstrapStore
 
         const string sql = """
             INSERT INTO edge_bootstrap(
-                bootstrap_id,site_id,central_server_url,image_server_url,image_watch_path,
+                bootstrap_id,site_id,central_server_url,parking_api_url,image_server_url,image_watch_path,
                 site_auth_key,updated_at_utc)
-            VALUES(1,@SiteId,@CentralServerUrl,@ImageServerUrl,@ImageWatchPath,@SiteAuthKey,@UpdatedAtUtc)
+            VALUES(1,@SiteId,@CentralServerUrl,@ParkingApiUrl,@ImageServerUrl,@ImageWatchPath,@SiteAuthKey,@UpdatedAtUtc)
             ON CONFLICT(bootstrap_id) DO UPDATE SET
                 site_id=@SiteId,
                 central_server_url=@CentralServerUrl,
+                parking_api_url=@ParkingApiUrl,
                 image_server_url=@ImageServerUrl,
                 image_watch_path=@ImageWatchPath,
                 site_auth_key=@SiteAuthKey,
@@ -96,6 +104,7 @@ public sealed class LocalBootstrapStore
         {
             settings.SiteId,
             CentralServerUrl = NormalizeUrl(settings.CentralServerUrl),
+            ParkingApiUrl = NormalizeUrl(settings.ParkingApiUrl),
             ImageServerUrl = NormalizeUrl(settings.ImageServerUrl),
             ImageWatchPath = settings.ImageWatchPath.Trim(),
             SiteAuthKey = settings.SiteAuthKey.Trim(),
@@ -108,6 +117,7 @@ public sealed class LocalBootstrapStore
         if (settings.SiteId <= 0)
             throw new ArgumentOutOfRangeException(nameof(settings.SiteId));
         ValidateUrl(settings.CentralServerUrl, nameof(settings.CentralServerUrl));
+        ValidateUrl(settings.ParkingApiUrl, nameof(settings.ParkingApiUrl));
         ValidateUrl(settings.ImageServerUrl, nameof(settings.ImageServerUrl));
         if (string.IsNullOrWhiteSpace(settings.ImageWatchPath))
             throw new ArgumentException("영상 감시폴더가 필요합니다.", nameof(settings.ImageWatchPath));
@@ -128,6 +138,7 @@ public sealed class LocalBootstrapStore
     private sealed record BootstrapRow(
         long SiteId,
         string CentralServerUrl,
+        string ParkingApiUrl,
         string ImageServerUrl,
         string ImageWatchPath,
         string SiteAuthKey,

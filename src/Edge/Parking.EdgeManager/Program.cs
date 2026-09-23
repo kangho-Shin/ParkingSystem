@@ -49,7 +49,7 @@ internal static class Program
             {
                 centralHttpClient = new HttpClient
                 {
-                    BaseAddress = new Uri(central!.CentralServerUrl),
+                    BaseAddress = new Uri(central!.ParkingApiUrl),
                     Timeout = TimeSpan.FromSeconds(10)
                 };
                 centralClient = new CentralParkingClient(

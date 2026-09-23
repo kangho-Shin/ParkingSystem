@@ -107,6 +107,7 @@ public sealed class EdgeManagerPresenterTests
             Task.FromResult(new EdgeSetupResponse(
                 request.SiteId,
                 request.CentralServerUrl,
+                request.ParkingApiUrl,
                 request.ImageServerUrl,
                 request.ImageWatchPath,
                 DateTimeOffset.UtcNow));

@@ -7,7 +7,7 @@ namespace Parking.Api.Tests;
 public sealed class LocalBootstrapStoreTests
 {
     [Fact]
-    public async Task 구버전DB를_초기화하면_영상감시폴더열을_추가한다()
+    public async Task 구버전DB를_초기화하면_신규설정열과_ParkingApi기본주소를_추가한다()
     {
         string path = Path.Combine(
             Path.GetTempPath(), $"parking-bootstrap-{Guid.NewGuid():N}.db");
@@ -26,6 +26,13 @@ public sealed class LocalBootstrapStoreTests
                         site_auth_key TEXT NOT NULL,
                         updated_at_utc TEXT NOT NULL);
                     """);
+                await connection.ExecuteAsync("""
+                    INSERT INTO edge_bootstrap(
+                        bootstrap_id, site_id, central_server_url, image_server_url,
+                        site_auth_key, updated_at_utc)
+                    VALUES(1, 9001, 'http://localhost:5100/', 'http://localhost:5400/',
+                        'test-key', '2026-09-23T00:00:00.0000000+00:00');
+                    """);
             }
 
             LocalBootstrapStore store = new(connectionString);
@@ -36,6 +43,12 @@ public sealed class LocalBootstrapStoreTests
             IReadOnlyList<string> columns = (await verification.QueryAsync<string>(
                 "SELECT name FROM pragma_table_info('edge_bootstrap');")).AsList();
             Assert.Contains("image_watch_path", columns);
+            Assert.Contains("parking_api_url", columns);
+
+            Parking.Contracts.EdgeBootstrapSettings? settings =
+                await store.GetAsync(CancellationToken.None);
+            Assert.NotNull(settings);
+            Assert.Equal("http://localhost:5000/", settings.ParkingApiUrl);
         }
         finally
         {

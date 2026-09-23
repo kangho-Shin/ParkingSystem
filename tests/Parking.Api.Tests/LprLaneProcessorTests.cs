@@ -133,7 +133,7 @@ public sealed class LprLaneProcessorTests
             await store.InitializeAsync(CancellationToken.None);
             await bootstrap.InitializeAsync(CancellationToken.None);
             await bootstrap.SaveAsync(new EdgeBootstrapSettings(
-                siteId, "http://localhost/", "http://localhost:5400/",
+                siteId, "http://localhost/", "http://localhost:5000/", "http://localhost:5400/",
                 @"D:\\LPR\\IMAGE", "test-key", DateTimeOffset.UtcNow), CancellationToken.None);
             await store.SaveAsync(new SiteConfiguration(
                 new ParkingSite(siteId, "시험현장", true),

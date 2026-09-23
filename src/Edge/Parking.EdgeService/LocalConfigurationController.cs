@@ -36,7 +36,7 @@ public sealed class LocalConfigurationController : ControllerBase
         return value is null
             ? NotFound()
             : Ok(new CentralConnectionResponse(
-                value.SiteId, value.CentralServerUrl, value.SiteAuthKey));
+                value.SiteId, value.CentralServerUrl, value.ParkingApiUrl, value.SiteAuthKey));
     }
 
     [HttpPut("setup")]
@@ -49,6 +49,7 @@ public sealed class LocalConfigurationController : ControllerBase
             EdgeBootstrapSettings value = new(
                 request.SiteId,
                 request.CentralServerUrl,
+                request.ParkingApiUrl,
                 request.ImageServerUrl,
                 request.ImageWatchPath,
                 request.SiteAuthKey,
@@ -133,6 +134,7 @@ public sealed class LocalConfigurationController : ControllerBase
     private static EdgeSetupResponse ToResponse(EdgeBootstrapSettings value) => new(
         value.SiteId,
         value.CentralServerUrl,
+        value.ParkingApiUrl,
         value.ImageServerUrl,
         value.ImageWatchPath,
         value.UpdatedAtUtc);

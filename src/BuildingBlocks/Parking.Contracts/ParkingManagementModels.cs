@@ -71,4 +71,5 @@ public sealed record ManagementCarNumberRequest(
 public sealed record CentralConnectionResponse(
     long SiteId,
     string CentralServerUrl,
+    string ParkingApiUrl,
     string SiteAuthKey);

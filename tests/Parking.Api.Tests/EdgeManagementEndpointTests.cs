@@ -47,6 +47,7 @@ public sealed class EdgeManagementEndpointTests
             await local.GetCentralConnectionAsync(CancellationToken.None));
         CentralConnectionResponse connection = Assert.IsType<CentralConnectionResponse>(ok.Value);
         Assert.Equal(1, connection.SiteId);
+        Assert.Equal("http://localhost:5000/", connection.ParkingApiUrl);
         Assert.Equal("test-key", connection.SiteAuthKey);
 
         local = context.CreateLocalController(System.Net.IPAddress.Parse("10.0.0.10"));
@@ -106,7 +107,7 @@ public sealed class EdgeManagementEndpointTests
             await configurationStore.InitializeAsync(CancellationToken.None);
             await bootstrapStore.InitializeAsync(CancellationToken.None);
             await bootstrapStore.SaveAsync(new EdgeBootstrapSettings(
-                1, "http://localhost:5100/", "http://localhost:5400/",
+                1, "http://localhost:5100/", "http://localhost:5000/", "http://localhost:5400/",
                 @"D:\\LPR\\IMAGE", "test-key", DateTimeOffset.UtcNow), CancellationToken.None);
             GatewayClient gatewayClient = new(new HttpClient(new ThrowHandler())
             {
