@@ -61,6 +61,23 @@ public sealed class EdgeManagerPresenterTests
         Assert.NotNull(view.OutImage);
     }
 
+    [Fact]
+    public async Task 사진서버_시간초과는_행선택_예외로_번지지않는다()
+    {
+        FakeClient client = new();
+        FakeView view = new();
+        EdgeEntryItem entry = CreateEntry("12가3456", "slow.jpg", DateTimeOffset.UtcNow);
+        client.Entries = new[] { entry };
+        EdgeManagerPresenter presenter = new(client, view);
+        await presenter.RefreshAsync(CancellationToken.None);
+        client.ThrowImageTimeout = true;
+
+        Exception? exception = await Record.ExceptionAsync(() =>
+            presenter.SelectEntryAsync(entry.EventId, CancellationToken.None));
+
+        Assert.Null(exception);
+    }
+
     private static EdgeEntryItem CreateEntry(
         string carNumber,
         string image,
@@ -73,6 +90,7 @@ public sealed class EdgeManagerPresenterTests
         public IReadOnlyList<EdgeEntryItem> Entries { get; set; } = Array.Empty<EdgeEntryItem>();
         public IReadOnlyList<EdgeActivityItem> Activities { get; set; } = Array.Empty<EdgeActivityItem>();
         public bool ThrowOnStatus { get; set; }
+        public bool ThrowImageTimeout { get; set; }
         public string? LastImageFileName { get; private set; }
         public List<string> ImageRequests { get; } = new();
 
@@ -116,6 +134,8 @@ public sealed class EdgeManagerPresenterTests
 
         public Task<byte[]?> GetImageAsync(string? fileName, CancellationToken cancellationToken)
         {
+            if (ThrowImageTimeout)
+                throw new TaskCanceledException("image timeout");
             LastImageFileName = fileName;
             if (fileName is not null) ImageRequests.Add(fileName);
             return Task.FromResult<byte[]?>(fileName is null ? null : new byte[] { 1, 2, 3 });
