@@ -20,7 +20,7 @@ public sealed class SiteConfigurationRepository : ISiteConfigurationRepository
         CancellationToken cancellationToken)
     {
         await using MySqlConnection connection = new(_connectionString);
-        ParkingSite? site = await connection.QueryFirstOrDefaultAsync<ParkingSite>(
+        SiteRow? siteRow = await connection.QueryFirstOrDefaultAsync<SiteRow>(
             new CommandDefinition("""
                 SELECT sitenum SiteId,parkname SiteName,useflag Enabled
                 FROM tparkings
@@ -29,11 +29,15 @@ public sealed class SiteConfigurationRepository : ISiteConfigurationRepository
                 """,
                 new { SiteId = siteId },
                 cancellationToken: cancellationToken));
-        if (site is null)
+        if (siteRow is null)
             return null;
+        ParkingSite site = new(
+            siteRow.SiteId,
+            siteRow.SiteName,
+            siteRow.Enabled != 0);
 
         IReadOnlyList<ParkingLane> lanes =
-            (await connection.QueryAsync<ParkingLane>(new CommandDefinition("""
+            (await connection.QueryAsync<LaneRow>(new CommandDefinition("""
                 SELECT laneid LaneId,sitenum SiteId,groupnum GroupNumber,
                        lanename LaneName,direction Direction,useflag Enabled
                 FROM tlaneinfo
@@ -41,10 +45,14 @@ public sealed class SiteConfigurationRepository : ISiteConfigurationRepository
                 ORDER BY groupnum,laneid;
                 """,
                 new { SiteId = siteId },
-                cancellationToken: cancellationToken))).AsList();
+                cancellationToken: cancellationToken)))
+            .Select(x => new ParkingLane(
+                x.LaneId, x.SiteId, x.GroupNumber, x.LaneName,
+                x.Direction, x.Enabled != 0))
+            .ToList();
 
         IReadOnlyList<ParkingDevice> devices =
-            (await connection.QueryAsync<ParkingDevice>(new CommandDefinition("""
+            (await connection.QueryAsync<DeviceRow>(new CommandDefinition("""
                 SELECT deviceid DeviceId,sitenum SiteId,laneid LaneId,
                        devicenum DeviceNumber,
                        CASE devicetype
@@ -64,10 +72,14 @@ public sealed class SiteConfigurationRepository : ISiteConfigurationRepository
                 ORDER BY devicenum;
                 """,
                 new { SiteId = siteId },
-                cancellationToken: cancellationToken))).AsList();
+                cancellationToken: cancellationToken)))
+            .Select(x => new ParkingDevice(
+                x.DeviceId, x.SiteId, x.LaneId, x.DeviceNumber,
+                x.DeviceType, x.DeviceName, x.IpAddress, x.Enabled != 0, x.Port))
+            .ToList();
 
         IReadOnlyList<ParkingDeviceLink> links =
-            (await connection.QueryAsync<ParkingDeviceLink>(new CommandDefinition("""
+            (await connection.QueryAsync<DeviceLinkRow>(new CommandDefinition("""
                 SELECT sitenum SiteId,sourcedeviceid SourceDeviceId,
                        targetdeviceid TargetDeviceId,linktype LinkType,
                        useflag Enabled
@@ -76,7 +88,11 @@ public sealed class SiteConfigurationRepository : ISiteConfigurationRepository
                 ORDER BY sourcedeviceid,targetdeviceid;
                 """,
                 new { SiteId = siteId },
-                cancellationToken: cancellationToken))).AsList();
+                cancellationToken: cancellationToken)))
+            .Select(x => new ParkingDeviceLink(
+                x.SiteId, x.SourceDeviceId, x.TargetDeviceId,
+                x.LinkType, x.Enabled != 0))
+            .ToList();
 
         IReadOnlyList<OperationVariableRow> variableRows =
             (await connection.QueryAsync<OperationVariableRow>(new CommandDefinition("""
@@ -455,6 +471,45 @@ public sealed class SiteConfigurationRepository : ISiteConfigurationRepository
     {
         public long Version { get; set; }
         public DateTime? UpdatedAt { get; set; }
+    }
+
+    private sealed class SiteRow
+    {
+        public long SiteId { get; set; }
+        public string SiteName { get; set; } = "";
+        public sbyte Enabled { get; set; }
+    }
+
+    private sealed class LaneRow
+    {
+        public long LaneId { get; set; }
+        public long SiteId { get; set; }
+        public int GroupNumber { get; set; }
+        public string LaneName { get; set; } = "";
+        public string Direction { get; set; } = "";
+        public sbyte Enabled { get; set; }
+    }
+
+    private sealed class DeviceRow
+    {
+        public long DeviceId { get; set; }
+        public long SiteId { get; set; }
+        public long? LaneId { get; set; }
+        public int DeviceNumber { get; set; }
+        public string DeviceType { get; set; } = "";
+        public string DeviceName { get; set; } = "";
+        public string? IpAddress { get; set; }
+        public sbyte Enabled { get; set; }
+        public int? Port { get; set; }
+    }
+
+    private sealed class DeviceLinkRow
+    {
+        public long SiteId { get; set; }
+        public long SourceDeviceId { get; set; }
+        public long TargetDeviceId { get; set; }
+        public string LinkType { get; set; } = "";
+        public sbyte Enabled { get; set; }
     }
 
     private sealed class OperationVariableRow

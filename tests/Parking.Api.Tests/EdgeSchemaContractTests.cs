@@ -52,7 +52,7 @@ public sealed class EdgeSchemaContractTests
             BaseAddress = new Uri("http://localhost/")
         });
 
-        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(
+        EventIdMismatchException exception = await Assert.ThrowsAsync<EventIdMismatchException>(
             () => client.SendAsync(
                 new FieldEventRequest(
                     requestId, 9001, 9010, 4001, "12가3456", DateTimeOffset.UtcNow, 2),

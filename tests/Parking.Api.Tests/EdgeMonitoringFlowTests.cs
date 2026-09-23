@@ -123,7 +123,7 @@ public sealed class EdgeMonitoringFlowTests
                     Guid.NewGuid(), true, 77, "OK", "입차", true)),
             context.Monitoring);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<EventIdMismatchException>(
             () => service.AcceptEntryAsync(entry, CancellationToken.None));
 
         OutboxMessage pending = Assert.Single(
