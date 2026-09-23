@@ -29,7 +29,39 @@ internal static class Program
             using SetupForm setupForm = new(client);
             if (setupForm.ShowDialog() != DialogResult.OK) return;
         }
-        Application.Run(new MainForm(client));
+
+        CentralConnectionResponse? central = null;
+        try
+        {
+            central = client.GetCentralConnectionAsync(CancellationToken.None)
+                .GetAwaiter().GetResult();
+        }
+        catch
+        {
+            // 중앙 관리기능만 비활성화하고 기존 로컬 모니터링은 계속 실행한다.
+        }
+
+        HttpClient? centralHttpClient = null;
+        try
+        {
+            ICentralParkingClient? centralClient = null;
+            if (VehicleManagementFormPolicy.ManagementEnabled(central))
+            {
+                centralHttpClient = new HttpClient
+                {
+                    BaseAddress = new Uri(central!.CentralServerUrl),
+                    Timeout = TimeSpan.FromSeconds(10)
+                };
+                centralClient = new CentralParkingClient(
+                    centralHttpClient, central.SiteAuthKey);
+            }
+            Application.Run(new MainForm(
+                client, centralClient, centralClient is null ? 0 : central!.SiteId));
+        }
+        finally
+        {
+            centralHttpClient?.Dispose();
+        }
     }
 
     private static string LoadBaseUrl()

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Parking.Contracts;
 using Parking.EdgeService;
@@ -35,16 +36,59 @@ public sealed class EdgeManagementEndpointTests
         Assert.False(status.CentralConnected);
     }
 
+    [Fact]
+    public async Task 중앙연결정보는_loopback요청에만_응답한다()
+    {
+        await using TestContext context = await TestContext.CreateAsync();
+
+        LocalConfigurationController local = context.CreateLocalController(
+            System.Net.IPAddress.Loopback);
+        OkObjectResult ok = Assert.IsType<OkObjectResult>(
+            await local.GetCentralConnectionAsync(CancellationToken.None));
+        CentralConnectionResponse connection = Assert.IsType<CentralConnectionResponse>(ok.Value);
+        Assert.Equal(1, connection.SiteId);
+        Assert.Equal("test-key", connection.SiteAuthKey);
+
+        local = context.CreateLocalController(System.Net.IPAddress.Parse("10.0.0.10"));
+        Assert.IsType<ForbidResult>(
+            await local.GetCentralConnectionAsync(CancellationToken.None));
+
+        local.HttpContext.Connection.RemoteIpAddress = null;
+        Assert.IsType<ForbidResult>(
+            await local.GetCentralConnectionAsync(CancellationToken.None));
+    }
+
     private sealed class TestContext : IAsyncDisposable
     {
-        private TestContext(string directory, ManagementController controller)
+        private TestContext(
+            string directory,
+            ManagementController controller,
+            LocalBootstrapStore bootstrapStore,
+            LocalConfigurationService configurationService)
         {
             Directory = directory;
             Controller = controller;
+            BootstrapStore = bootstrapStore;
+            ConfigurationService = configurationService;
         }
 
         private string Directory { get; }
+        private LocalBootstrapStore BootstrapStore { get; }
+        private LocalConfigurationService ConfigurationService { get; }
         public ManagementController Controller { get; }
+
+        public LocalConfigurationController CreateLocalController(
+            System.Net.IPAddress remoteAddress)
+        {
+            LocalConfigurationController controller = new(
+                BootstrapStore, ConfigurationService);
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            };
+            controller.HttpContext.Connection.RemoteIpAddress = remoteAddress;
+            return controller;
+        }
 
         public static async Task<TestContext> CreateAsync()
         {
@@ -74,7 +118,9 @@ public sealed class EdgeManagementEndpointTests
                 new LprConnectionTracker());
             return new TestContext(
                 directory,
-                new ManagementController(service));
+                new ManagementController(service),
+                bootstrapStore,
+                configurationService);
         }
 
         public ValueTask DisposeAsync()

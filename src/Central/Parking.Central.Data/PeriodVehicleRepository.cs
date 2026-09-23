@@ -127,10 +127,10 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
                 new CommandDefinition("""
                     INSERT INTO tperiodinout
                     (periodindex,sitenum,groupnum,ineventid,cardno,name,enddate,
-                     carnum,cartype,inlaneid,indevicenum,indate,inimage,outflag)
+                     carnum,cartype,inlaneid,indevicenum,indate,inimage,outflag,manual)
                     VALUES
                     (@MemberId,@SiteId,@Groupnum,@EventId,@CardNumber,@Name,@EndDate,
-                     @CarNumber,@CarType,@LaneId,@DeviceNumber,@InDate,@InImage,'I');
+                     @CarNumber,@CarType,@LaneId,@DeviceNumber,@InDate,@InImage,'I',@Manual);
                     SELECT LAST_INSERT_ID();
                     """,
                     new
@@ -147,7 +147,8 @@ public sealed class PeriodVehicleRepository : IPeriodVehicleRepository
                         request.LaneId,
                         DeviceNumber = deviceNumber,
                         InDate = ParkingLocalTime.ToDatabase(request.InDateTime),
-                        InImage = VehicleImageName.FileNameOnly(request.InImage)
+                        InImage = VehicleImageName.FileNameOnly(request.InImage),
+                        Manual = request.IsManual ? 1 : 0
                     },
                     transaction,
                     cancellationToken: cancellationToken));

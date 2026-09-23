@@ -26,6 +26,19 @@ public sealed class LocalConfigurationController : ControllerBase
         return value is null ? NotFound() : Ok(ToResponse(value));
     }
 
+    [HttpGet("central-connection")]
+    public async Task<IActionResult> GetCentralConnectionAsync(CancellationToken token)
+    {
+        System.Net.IPAddress? remote = HttpContext.Connection.RemoteIpAddress;
+        if (remote is null || !System.Net.IPAddress.IsLoopback(remote))
+            return Forbid();
+        EdgeBootstrapSettings? value = await _bootstrap.GetAsync(token);
+        return value is null
+            ? NotFound()
+            : Ok(new CentralConnectionResponse(
+                value.SiteId, value.CentralServerUrl, value.SiteAuthKey));
+    }
+
     [HttpPut("setup")]
     public async Task<IActionResult> SaveSetupAsync(
         [FromBody] EdgeSetupRequest request,

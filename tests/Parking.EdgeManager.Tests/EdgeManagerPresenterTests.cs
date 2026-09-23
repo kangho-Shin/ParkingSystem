@@ -97,6 +97,10 @@ public sealed class EdgeManagerPresenterTests
         public Task<EdgeSetupResponse?> GetSetupAsync(CancellationToken cancellationToken) =>
             Task.FromResult<EdgeSetupResponse?>(null);
 
+        public Task<CentralConnectionResponse?> GetCentralConnectionAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult<CentralConnectionResponse?>(null);
+
         public Task<EdgeSetupResponse> SaveSetupAsync(
             EdgeSetupRequest request,
             CancellationToken cancellationToken) =>

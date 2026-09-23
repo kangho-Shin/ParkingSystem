@@ -8,6 +8,7 @@ public interface IEdgeManagementClient
     Task<EdgeSetupResponse> SaveSetupAsync(
         EdgeSetupRequest request,
         CancellationToken cancellationToken);
+    Task<CentralConnectionResponse?> GetCentralConnectionAsync(CancellationToken cancellationToken);
     Task<EdgeServiceStatus> GetStatusAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<EdgeEntryItem>> GetEntriesAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<EdgeActivityItem>> GetActivitiesAsync(CancellationToken cancellationToken);

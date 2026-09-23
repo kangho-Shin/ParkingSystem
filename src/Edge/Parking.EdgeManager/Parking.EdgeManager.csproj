@@ -14,6 +14,14 @@
     <Compile Update="SetupForm.Designer.cs"><DependentUpon>SetupForm.cs</DependentUpon></Compile>
     <Compile Update="ConfigurationForm.cs"><SubType>Form</SubType></Compile>
     <Compile Update="ConfigurationForm.Designer.cs"><DependentUpon>ConfigurationForm.cs</DependentUpon></Compile>
+    <Compile Update="EntryVehicleForm.cs"><SubType>Form</SubType></Compile>
+    <Compile Update="EntryVehicleForm.Designer.cs"><DependentUpon>EntryVehicleForm.cs</DependentUpon></Compile>
+    <Compile Update="ManualEntryForm.cs"><SubType>Form</SubType></Compile>
+    <Compile Update="ManualEntryForm.Designer.cs"><DependentUpon>ManualEntryForm.cs</DependentUpon></Compile>
+    <Compile Update="CarNumberChangeForm.cs"><SubType>Form</SubType></Compile>
+    <Compile Update="CarNumberChangeForm.Designer.cs"><DependentUpon>CarNumberChangeForm.cs</DependentUpon></Compile>
+    <Compile Update="ExitVehicleForm.cs"><SubType>Form</SubType></Compile>
+    <Compile Update="ExitVehicleForm.Designer.cs"><DependentUpon>ExitVehicleForm.cs</DependentUpon></Compile>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Parking.EdgeManager.Core\Parking.EdgeManager.Core.csproj" />

@@ -12,4 +12,6 @@ public sealed record FieldEventRequest(
     DateTimeOffset InDateTime,
     int Groupnum = 1,
     string EventType = ParkingEventType.Entry,
-    string? InImage = null);
+    string? InImage = null,
+    int CarType = 1,
+    bool IsManual = false);

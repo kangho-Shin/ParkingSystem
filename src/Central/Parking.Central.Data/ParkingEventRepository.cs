@@ -154,10 +154,10 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                 new CommandDefinition("""
                     INSERT INTO tparkinfo
                     (sitenum,groupnum,ineventid,carnum,cartype,inlaneid,
-                     indevicenum,indate,inimage,outflag)
+                     indevicenum,indate,inimage,outflag,manual)
                     VALUES
-                    (@SiteId,@Groupnum,@EventId,@CarNumber,1,@LaneId,
-                     @DeviceNumber,@InDate,@InImage,'I');
+                    (@SiteId,@Groupnum,@EventId,@CarNumber,@CarType,@LaneId,
+                     @DeviceNumber,@InDate,@InImage,'I',@Manual);
                     SELECT LAST_INSERT_ID();
                     """,
                     new
@@ -166,10 +166,12 @@ public sealed class ParkingEventRepository : IParkingEventRepository
                         request.Groupnum,
                         EventId = ParkingEventData.EventId(request.EventId),
                         CarNumber = request.CarNumber.Trim(),
+                        CarType = request.CarType,
                         request.LaneId,
                         DeviceNumber = deviceNumber,
                         InDate = ParkingLocalTime.ToDatabase(request.InDateTime),
-                        InImage = VehicleImageName.FileNameOnly(request.InImage)
+                        InImage = VehicleImageName.FileNameOnly(request.InImage),
+                        Manual = request.IsManual ? 1 : 0
                     },
                     transaction,
                     cancellationToken: cancellationToken));

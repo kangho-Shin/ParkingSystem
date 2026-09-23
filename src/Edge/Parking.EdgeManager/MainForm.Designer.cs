@@ -22,6 +22,8 @@ partial class MainForm
     private Label _outboxStatus = null!;
     private Label _lprStatus = null!;
     private Button _configurationButton = null!;
+    private Button _entryVehicleButton = null!;
+    private Button _exitVehicleButton = null!;
     private DataGridView _entryGrid = null!;
     private DataGridView _activityGrid = null!;
     private PictureBox _inPicture = null!;
@@ -54,6 +56,8 @@ partial class MainForm
         _outboxStatus = new Label();
         _lprStatus = new Label();
         _configurationButton = new Button();
+        _entryVehicleButton = new Button();
+        _exitVehicleButton = new Button();
         _entryGrid = new DataGridView();
         _activityGrid = new DataGridView();
         _inPicture = new PictureBox();
@@ -78,7 +82,7 @@ partial class MainForm
         _rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 150F));
 
         _statusLayout.Dock = DockStyle.Fill;
-        _statusLayout.Controls.AddRange(new Control[] { _serviceStatus, _gatewayStatus, _centralStatus, _syncStatus, _outboxStatus, _lprStatus, _configurationButton });
+        _statusLayout.Controls.AddRange(new Control[] { _serviceStatus, _gatewayStatus, _centralStatus, _syncStatus, _outboxStatus, _lprStatus, _entryVehicleButton, _exitVehicleButton, _configurationButton });
 
         _serviceStatus.AutoSize = true;
         _serviceStatus.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
@@ -107,6 +111,12 @@ partial class MainForm
         _configurationButton.AutoSize = true;
         _configurationButton.Text = "환경설정";
         _configurationButton.Click += ConfigurationButtonClick;
+        _entryVehicleButton.AutoSize = true;
+        _entryVehicleButton.Text = "입차차량 관리";
+        _entryVehicleButton.Click += EntryVehicleButtonClick;
+        _exitVehicleButton.AutoSize = true;
+        _exitVehicleButton.Text = "출차차량 조회";
+        _exitVehicleButton.Click += ExitVehicleButtonClick;
 
         _contentLayout.ColumnCount = 3;
         _contentLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32F));

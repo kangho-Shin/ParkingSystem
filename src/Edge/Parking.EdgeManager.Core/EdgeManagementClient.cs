@@ -38,6 +38,17 @@ public sealed class EdgeManagementClient : IEdgeManagementClient
             ?? throw new InvalidOperationException("최초 설정 저장 응답이 없습니다.");
     }
 
+    public async Task<CentralConnectionResponse?> GetCentralConnectionAsync(
+        CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage response = await _httpClient.GetAsync(
+            "api/v1/local/central-connection", cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+        response.EnsureSuccessStatusCode();
+        return JsonConvert.DeserializeObject<CentralConnectionResponse>(
+            await response.Content.ReadAsStringAsync(cancellationToken));
+    }
+
     public Task<EdgeServiceStatus> GetStatusAsync(CancellationToken cancellationToken) =>
         GetAsync<EdgeServiceStatus>("api/v1/management/status", cancellationToken);
 

@@ -7,6 +7,9 @@ public sealed partial class MainForm : Form, IEdgeManagerView
 {
     private readonly EdgeManagerPresenter _presenter;
     private readonly IEdgeManagementClient _client;
+    private readonly ICentralParkingClient? _centralClient;
+    private readonly long _siteId;
+    private SiteConfiguration? _configuration;
     private IReadOnlyList<EdgeEntryItem> _entries = Array.Empty<EdgeEntryItem>();
     private IReadOnlyList<EdgeActivityItem> _activities = Array.Empty<EdgeActivityItem>();
     private IReadOnlyList<ParkingDevice> _devices = Array.Empty<ParkingDevice>();
@@ -21,10 +24,17 @@ public sealed partial class MainForm : Form, IEdgeManagerView
         _presenter = null!;
     }
 
-    public MainForm(IEdgeManagementClient client) : this()
+    public MainForm(
+        IEdgeManagementClient client,
+        ICentralParkingClient? centralClient = null,
+        long siteId = 0) : this()
     {
         _client = client;
+        _centralClient = centralClient;
+        _siteId = siteId;
         _presenter = new EdgeManagerPresenter(client, this);
+        _entryVehicleButton.Enabled = false;
+        _exitVehicleButton.Enabled = false;
         ConfigureGridColumns();
     }
 
@@ -61,7 +71,12 @@ public sealed partial class MainForm : Form, IEdgeManagerView
 
     public void ShowConfiguration(SiteConfiguration? configuration)
     {
+        _configuration = configuration;
         _devices = configuration?.Devices ?? Array.Empty<ParkingDevice>();
+        bool managementEnabled = _centralClient is not null &&
+            _siteId > 0 && configuration is not null;
+        _entryVehicleButton.Enabled = managementEnabled;
+        _exitVehicleButton.Enabled = managementEnabled;
         BindEntryRows(EdgeManagerListMapper.MapEntries(_entries, _devices));
         BindActivityRows(EdgeManagerListMapper.MapActivities(_activities, _devices));
         _configurationTree.BeginUpdate();
@@ -125,6 +140,54 @@ public sealed partial class MainForm : Form, IEdgeManagerView
         finally
         {
             _configurationButton.Enabled = true;
+            _refreshTimer.Start();
+        }
+    }
+
+    private async void EntryVehicleButtonClick(object? sender, EventArgs e)
+    {
+        if (_centralClient is null || _configuration is null) return;
+        _refreshTimer.Stop();
+        _entryVehicleButton.Enabled = false;
+        try
+        {
+            using EntryVehicleForm form = new(
+                _centralClient, _client, _siteId, _configuration);
+            form.ShowDialog(this);
+            await RefreshAsync();
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show($"입차차량 관리 화면을 열지 못했습니다.\r\n{exception.Message}",
+                "입차차량 관리", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _entryVehicleButton.Enabled = _centralClient is not null && _configuration is not null;
+            _refreshTimer.Start();
+        }
+    }
+
+    private async void ExitVehicleButtonClick(object? sender, EventArgs e)
+    {
+        if (_centralClient is null || _configuration is null) return;
+        _refreshTimer.Stop();
+        _exitVehicleButton.Enabled = false;
+        try
+        {
+            using ExitVehicleForm form = new(
+                _centralClient, _client, _siteId, _configuration);
+            form.ShowDialog(this);
+            await RefreshAsync();
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show($"출차차량 조회 화면을 열지 못했습니다.\r\n{exception.Message}",
+                "출차차량 조회", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _exitVehicleButton.Enabled = _centralClient is not null && _configuration is not null;
             _refreshTimer.Start();
         }
     }

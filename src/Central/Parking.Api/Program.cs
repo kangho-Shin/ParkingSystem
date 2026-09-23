@@ -1,6 +1,7 @@
 using Newtonsoft.Json.Serialization;
 using Parking.Api.Features.Entries;
 using Parking.Api.Features.Fees;
+using Parking.Api.Features.Management;
 using Parking.Central.Data;
 
 namespace Parking.Api
@@ -21,6 +22,7 @@ namespace Parking.Api
             builder.Services.AddScoped<IParkingExitRepository>(_ => new ParkingExitRepository(connectionString));
             builder.Services.AddScoped<IParkingSearchRepository>(_ => new ParkingSearchRepository(connectionString));
             builder.Services.AddScoped<IParkingCorrectionRepository>(_ => new ParkingCorrectionRepository(connectionString));
+            builder.Services.AddScoped<IParkingManagementRepository>(_ => new ParkingManagementRepository(connectionString));
             builder.Services.AddScoped<IParkingLaneDirectionValidator>(_ => new ParkingLaneDirectionValidator(connectionString));
             builder.Services.AddScoped<IPeriodVehicleRepository>(_ => new PeriodVehicleRepository(connectionString));
 
@@ -30,6 +32,7 @@ namespace Parking.Api
             builder.Services.AddScoped<ISettlementRepository>(_ => new SettlementRepository(connectionString));
             builder.Services.AddScoped<ISiteConfigurationRepository>(_ => new SiteConfigurationRepository(connectionString));
             builder.Services.AddScoped<CreateEntryHandler>();
+            builder.Services.AddScoped<ManualEntryHandler>();
 
             builder.Services.AddScoped(_ => new FeeCalculationService(connectionString));
             builder.Services.AddScoped<ParkingQuoteService>();

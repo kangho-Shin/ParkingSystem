@@ -37,7 +37,7 @@ public sealed class PeriodVehicleRepositoryTests
         FieldEventResponse entry = await repository.SaveEntryAsync(
             new FieldEventRequest(
                 Guid.NewGuid(), 9001, 9010, 4001, "12가3456", inDateTime,
-                2, ParkingEventType.Entry, @"C:\Images\PERIOD-IN.jpg"),
+                2, ParkingEventType.Entry, @"C:\Images\PERIOD-IN.jpg", 3, true),
             member,
             CancellationToken.None);
         OpenPeriodSession? open = await repository.FindOpenAsync(
@@ -58,13 +58,15 @@ public sealed class PeriodVehicleRepositoryTests
         await using MySqlConnection verifyConnection = new(ConnectionString);
         PeriodExitRow stored = await verifyConnection.QuerySingleAsync<PeriodExitRow>("""
             SELECT outflag OutFlag, inimage InImage, outimage OutImage,
-                   parktime ParkTime
+                   parktime ParkTime,cartype CarType,manual Manual
             FROM tperiodinout WHERE xindex=@PeriodSessionId;
             """, new { open.PeriodSessionId });
         Assert.Equal("O", stored.OutFlag);
         Assert.Equal("PERIOD-IN.jpg", stored.InImage);
         Assert.Equal("PERIOD-OUT.jpg", stored.OutImage);
         Assert.Equal(30, stored.ParkTime);
+        Assert.Equal(1, stored.CarType);
+        Assert.Equal(1, stored.Manual);
         Assert.Equal(1, await verifyConnection.ExecuteScalarAsync<long>(
             "SELECT inregcnt FROM tparkingnum WHERE sitenum=9001 AND groupnum=2;"));
         Assert.Equal(1, await verifyConnection.ExecuteScalarAsync<long>(
@@ -150,6 +152,8 @@ public sealed class PeriodVehicleRepositoryTests
         public string? InImage { get; set; }
         public string? OutImage { get; set; }
         public int ParkTime { get; set; }
+        public int CarType { get; set; }
+        public int Manual { get; set; }
     }
 
     private sealed class DuplicatePeriodRow
