@@ -14,13 +14,15 @@ public sealed class LocalConfigurationStore
         const string sql = """
             CREATE TABLE IF NOT EXISTS local_site(site_id INTEGER PRIMARY KEY,site_name TEXT NOT NULL,enabled INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS local_lane(site_id INTEGER NOT NULL,lane_id INTEGER NOT NULL,groupnum INTEGER NOT NULL,lane_name TEXT NOT NULL,direction TEXT NOT NULL,enabled INTEGER NOT NULL,PRIMARY KEY(site_id,lane_id));
-            CREATE TABLE IF NOT EXISTS local_device(site_id INTEGER NOT NULL,device_id INTEGER NOT NULL,lane_id INTEGER NULL,device_number INTEGER NOT NULL,device_type TEXT NOT NULL,device_name TEXT NOT NULL,ip_address TEXT NULL,port INTEGER NULL,enabled INTEGER NOT NULL,PRIMARY KEY(site_id,device_id),UNIQUE(site_id,device_number));
+            CREATE TABLE IF NOT EXISTS local_device(site_id INTEGER NOT NULL,device_id INTEGER NOT NULL,lane_id INTEGER NULL,device_number INTEGER NOT NULL,device_type TEXT NOT NULL,device_name TEXT NOT NULL,ip_address TEXT NULL,port INTEGER NULL,enabled INTEGER NOT NULL,PRIMARY KEY(site_id,device_id));
+            CREATE INDEX IF NOT EXISTS ix_local_device_number ON local_device(site_id,device_number);
             CREATE TABLE IF NOT EXISTS local_device_link(site_id INTEGER NOT NULL,source_device_id INTEGER NOT NULL,target_device_id INTEGER NOT NULL,link_type TEXT NOT NULL,enabled INTEGER NOT NULL,PRIMARY KEY(site_id,source_device_id,target_device_id,link_type));
             CREATE TABLE IF NOT EXISTS local_operation_variable(site_id INTEGER NOT NULL,groupnum INTEGER NOT NULL,command_type TEXT NOT NULL,value TEXT NULL,PRIMARY KEY(site_id,groupnum,command_type));
             CREATE TABLE IF NOT EXISTS local_configuration_state(site_id INTEGER PRIMARY KEY,version INTEGER NOT NULL,updated_at_utc TEXT NOT NULL,dirty INTEGER NOT NULL DEFAULT 0);
             """;
         await using SqliteConnection connection = new(_connectionString);
         await connection.ExecuteAsync(new CommandDefinition(sql, cancellationToken: cancellationToken));
+        await RemoveDeviceNumberUniqueConstraintAsync(connection, cancellationToken);
         IEnumerable<string> stateColumns = await connection.QueryAsync<string>(
             new CommandDefinition(
                 "SELECT name FROM pragma_table_info('local_configuration_state');",
@@ -29,6 +31,46 @@ public sealed class LocalConfigurationStore
             await connection.ExecuteAsync(new CommandDefinition(
                 "ALTER TABLE local_configuration_state ADD COLUMN dirty INTEGER NOT NULL DEFAULT 0;",
                 cancellationToken: cancellationToken));
+    }
+
+    private static async Task RemoveDeviceNumberUniqueConstraintAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        string? tableSql = await connection.QuerySingleOrDefaultAsync<string>(
+            new CommandDefinition(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='local_device';",
+                cancellationToken: cancellationToken));
+        string normalized = string.Concat((tableSql ?? "").Where(x => !char.IsWhiteSpace(x)))
+            .ToLowerInvariant();
+        if (!normalized.Contains("unique(site_id,device_number)", StringComparison.Ordinal))
+            return;
+
+        await connection.OpenAsync(cancellationToken);
+        await using SqliteTransaction transaction = connection.BeginTransaction();
+        await connection.ExecuteAsync(new CommandDefinition("""
+            CREATE TABLE local_device_new(
+                site_id INTEGER NOT NULL,
+                device_id INTEGER NOT NULL,
+                lane_id INTEGER NULL,
+                device_number INTEGER NOT NULL,
+                device_type TEXT NOT NULL,
+                device_name TEXT NOT NULL,
+                ip_address TEXT NULL,
+                port INTEGER NULL,
+                enabled INTEGER NOT NULL,
+                PRIMARY KEY(site_id,device_id));
+            INSERT INTO local_device_new(
+                site_id,device_id,lane_id,device_number,device_type,device_name,
+                ip_address,port,enabled)
+            SELECT site_id,device_id,lane_id,device_number,device_type,device_name,
+                   ip_address,port,enabled
+            FROM local_device;
+            DROP TABLE local_device;
+            ALTER TABLE local_device_new RENAME TO local_device;
+            CREATE INDEX ix_local_device_number ON local_device(site_id,device_number);
+            """, transaction: transaction, cancellationToken: cancellationToken));
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public Task SaveAsync(SiteConfiguration value, CancellationToken token) => MutateAsync(value.Site.SiteId, async (c, t) =>

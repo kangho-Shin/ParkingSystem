@@ -7,6 +7,59 @@ namespace Parking.Api.Tests;
 public sealed class EdgeManagementStoreTests
 {
     [Fact]
+    public async Task 기존DB도_서로다른차로의_같은장치번호를_저장한다()
+    {
+        string databasePath = Path.Combine(
+            Path.GetTempPath(),
+            $"parking-edge-device-number-migration-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            string connectionString = $"Data Source={databasePath};Pooling=False";
+            await using (Microsoft.Data.Sqlite.SqliteConnection connection = new(connectionString))
+            {
+                await connection.ExecuteAsync("""
+                    CREATE TABLE local_device(
+                        site_id INTEGER NOT NULL,
+                        device_id INTEGER NOT NULL,
+                        lane_id INTEGER NULL,
+                        device_number INTEGER NOT NULL,
+                        device_type TEXT NOT NULL,
+                        device_name TEXT NOT NULL,
+                        ip_address TEXT NULL,
+                        port INTEGER NULL,
+                        enabled INTEGER NOT NULL,
+                        PRIMARY KEY(site_id,device_id),
+                        UNIQUE(site_id,device_number));
+                    """);
+            }
+
+            LocalConfigurationStore store = new(connectionString);
+            await store.InitializeAsync(CancellationToken.None);
+            await store.SaveAsync(new SiteConfiguration(
+                new ParkingSite(9001, "시험현장", true),
+                [
+                    new ParkingLane(9020, 9001, 2, "출차", "EXIT", true),
+                    new ParkingLane(98020, 9001, 98, "시험출차", "EXIT", false)
+                ],
+                [
+                    new ParkingDevice(4002, 9001, 9020, 402, "LPR", "출차LPR", null, false),
+                    new ParkingDevice(984002, 9001, 98020, 402, "LPR", "시험출차LPR", null, false)
+                ]), CancellationToken.None);
+
+            SiteConfiguration? saved = await store.GetAsync(9001, CancellationToken.None);
+            Assert.NotNull(saved);
+            Assert.Equal(
+                new long[] { 4002, 984002 },
+                saved.Devices.Select(x => x.DeviceId).OrderBy(x => x));
+        }
+        finally
+        {
+            if (File.Exists(databasePath)) File.Delete(databasePath);
+        }
+    }
+
+    [Fact]
     public async Task 기존_로컬설정DB에_dirty상태를_추가한다()
     {
         string databasePath = Path.Combine(
