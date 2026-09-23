@@ -52,12 +52,15 @@ namespace Parking.EdgeService
                 if (remote is not null) await _store.ApplyRemoteAsync(remote, token);
                 return;
             }
-            if (remote is not null && remote.UpdatedAtUtc > local.UpdatedAtUtc)
+            bool localDirty = await _store.IsDirtyAsync(bootstrap.SiteId, token);
+            ConfigurationSyncAction action = ConfigurationSyncPolicy.Resolve(
+                localDirty, local.Version, remote?.Version);
+            if (action == ConfigurationSyncAction.PullRemote)
             {
-                await _store.ApplyRemoteAsync(remote, token);
+                await _store.ApplyRemoteAsync(remote!, token);
                 return;
             }
-            if (remote is not null && remote.Version == local.Version && remote.UpdatedAtUtc == local.UpdatedAtUtc)
+            if (action == ConfigurationSyncAction.None)
                 return;
 
             VersionedSiteConfiguration outgoing = local with
@@ -74,7 +77,7 @@ namespace Parking.EdgeService
             {
                 VersionedSiteConfiguration? current =
                     Newtonsoft.Json.JsonConvert.DeserializeObject<VersionedSiteConfiguration>(response.Content);
-                if (current is not null && current.UpdatedAtUtc > local.UpdatedAtUtc)
+                if (current is not null && !localDirty)
                     await _store.ApplyRemoteAsync(current, token);
             }
             else
