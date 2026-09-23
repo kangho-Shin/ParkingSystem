@@ -165,7 +165,7 @@ STX + ACK|EventId + ETX
 STX + NAK|EventId|ErrorCode + ETX
 ```
 
-출차가 미정산으로 차단돼도 패킷과 사건 처리가 정상이면 ACK다. 파일명, 인코딩, 현장·차로·장치·방향 오류만 NAK로 응답한다.
+중앙 처리결과가 거부이면 `ResultCode`를 포함한 NAK로 응답한다. JPXLpr은 ACK와 NAK 모두 32자리 EventId가 요청과 같은지 확인한다. `PAYMENT_REQUIRED`, `OPEN_SESSION_NOT_FOUND`와 파일명·현장·차로·장치·방향 오류는 확정 결과로 종료한다. EventId가 없거나 다른 응답, 인코딩 오류, 중앙·설정·통신 장애는 요청과 연결된 결과로 확정할 수 없으므로 같은 EventId로 재전송한다.
 
 ## 7. 주요 결과코드
 

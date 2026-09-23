@@ -2,7 +2,11 @@ using System.Net.Sockets;
 
 namespace JPXLpr.Edge;
 
-public sealed record EdgeLprSendResult(bool Accepted, string Code, string Message);
+public sealed record EdgeLprSendResult(
+    bool Accepted,
+    string Code,
+    string Message,
+    string? ResultCode = null);
 
 public interface IEdgeLprSender
 {

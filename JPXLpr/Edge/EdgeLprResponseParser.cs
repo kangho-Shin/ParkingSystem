@@ -10,20 +10,36 @@ public static class EdgeLprResponseParser
         "INVALID_SITE",
         "INVALID_LANE",
         "INVALID_DEVICE",
-        "DIRECTION_MISMATCH"
+        "DEVICE_NOT_FOUND",
+        "DIRECTION_MISMATCH",
+        "PAYMENT_REQUIRED",
+        "OPEN_SESSION_NOT_FOUND"
     };
 
     public static EdgeLprSendResult Match(string response, Guid eventId)
     {
-        string value = response.Trim().Trim('\0', '\r', '\n', (char)0x02, (char)0x03);
-        if (value.StartsWith("NAK", StringComparison.OrdinalIgnoreCase) ||
-            value.StartsWith("NACK", StringComparison.OrdinalIgnoreCase))
-            return new(false, "NAK", value);
-        if (!value.StartsWith("ACK|", StringComparison.OrdinalIgnoreCase))
+        if (response.Length < 2 || response[0] != 0x02 || response[^1] != 0x03)
+            return new(false, "INVALID_RESPONSE", response);
+
+        string value = response[1..^1];
+        string[] fields = value.Split('|');
+        if (fields.Length == 3 &&
+            (string.Equals(fields[0], "NAK", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(fields[0], "NACK", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (!TryParseEventId(fields[1], out Guid actual) || !IsResultCode(fields[2]))
+                return new(false, "INVALID_RESPONSE", value);
+            if (actual != eventId)
+                return new(false, "RESPONSE_EVENT_MISMATCH", value);
+            return new(false, "NAK", value, fields[2]);
+        }
+
+        if (fields.Length != 2 ||
+            !string.Equals(fields[0], "ACK", StringComparison.OrdinalIgnoreCase) ||
+            !TryParseEventId(fields[1], out Guid ackEventId))
             return new(false, "INVALID_RESPONSE", value);
-        string idText = value[4..].Trim();
-        if (!Guid.TryParse(idText, out Guid actual) || actual != eventId)
-            return new(false, "ACK_EVENT_MISMATCH", value);
+        if (ackEventId != eventId)
+            return new(false, "RESPONSE_EVENT_MISMATCH", value);
         return new(true, "ACK", value);
     }
 
@@ -31,9 +47,22 @@ public static class EdgeLprResponseParser
     {
         if (result.Accepted || !string.Equals(result.Code, "NAK", StringComparison.OrdinalIgnoreCase))
             return false;
-        string errorCode = result.Message.Split('|').LastOrDefault()?.Trim() ?? string.Empty;
-        return PermanentErrors.Contains(errorCode);
+        return result.ResultCode is not null && PermanentErrors.Contains(result.ResultCode);
     }
+
+    private static bool TryParseEventId(string value, out Guid eventId)
+    {
+        eventId = Guid.Empty;
+        return value.Length == 32 &&
+               value.All(Uri.IsHexDigit) &&
+               Guid.TryParseExact(value, "N", out eventId);
+    }
+
+    private static bool IsResultCode(string value) =>
+        value.Length > 0 && value.All(character =>
+            character == '_' ||
+            character is >= 'A' and <= 'Z' ||
+            character is >= '0' and <= '9');
 
     public static async Task<string> ReadAsync(Stream stream, CancellationToken token)
     {

@@ -54,6 +54,30 @@ public sealed class EdgeLprFrameTests
     }
 
     [Fact]
+    public void Hyphenated_ack_event_id_is_rejected()
+    {
+        Guid id = Guid.Parse("11111111-2222-3333-4444-555555555555");
+
+        EdgeLprSendResult result = EdgeLprResponseParser.Match(
+            $"{(char)0x02}ACK|{id:D}{(char)0x03}", id);
+
+        Assert.False(result.Accepted);
+        Assert.Equal("INVALID_RESPONSE", result.Code);
+    }
+
+    [Fact]
+    public void Ack_event_id_with_trailing_space_is_rejected()
+    {
+        Guid id = Guid.Parse("11111111-2222-3333-4444-555555555555");
+
+        EdgeLprSendResult result = EdgeLprResponseParser.Match(
+            $"{(char)0x02}ACK|{id:N} {(char)0x03}", id);
+
+        Assert.False(result.Accepted);
+        Assert.Equal("INVALID_RESPONSE", result.Code);
+    }
+
+    [Fact]
     public void Framed_nak_is_rejected()
     {
         Guid id = Guid.Parse("11111111-2222-3333-4444-555555555555");
@@ -61,6 +85,60 @@ public sealed class EdgeLprFrameTests
             $"{(char)0x02}NAK|{id:N}|DEVICE_NOT_FOUND{(char)0x03}", id);
         Assert.False(result.Accepted);
         Assert.Equal("NAK", result.Code);
+    }
+
+    [Fact]
+    public void Nak_with_different_event_id_is_not_matched_to_request()
+    {
+        Guid expected = Guid.Parse("11111111-2222-3333-4444-555555555555");
+        Guid actual = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+
+        EdgeLprSendResult result = EdgeLprResponseParser.Match(
+            $"{(char)0x02}NAK|{actual:N}|INVALID_DEVICE{(char)0x03}", expected);
+
+        Assert.False(result.Accepted);
+        Assert.Equal("RESPONSE_EVENT_MISMATCH", result.Code);
+    }
+
+    [Theory]
+    [InlineData("PAYMENT_REQUIRED")]
+    [InlineData("OPEN_SESSION_NOT_FOUND")]
+    public void Completed_business_nak_is_not_retried(string errorCode)
+    {
+        Guid id = Guid.Parse("11111111-2222-3333-4444-555555555555");
+        EdgeLprSendResult result = EdgeLprResponseParser.Match(
+            $"{(char)0x02}NAK|{id:N}|{errorCode}{(char)0x03}", id);
+
+        Assert.True(EdgeLprResponseParser.IsPermanentFailure(result));
+    }
+
+    [Theory]
+    [InlineData("PROCESSING_ERROR")]
+    [InlineData("CONFIG_NOT_READY")]
+    [InlineData("CENTRAL_OFFLINE_EXIT_BLOCKED")]
+    [InlineData("KIOSK_OFFLINE_BLOCKED")]
+    public void Temporary_nak_is_retried(string errorCode)
+    {
+        Guid id = Guid.Parse("11111111-2222-3333-4444-555555555555");
+        EdgeLprSendResult result = EdgeLprResponseParser.Match(
+            $"{(char)0x02}NAK|{id:N}|{errorCode}{(char)0x03}", id);
+
+        Assert.False(EdgeLprResponseParser.IsPermanentFailure(result));
+    }
+
+    [Theory]
+    [InlineData("NAKX|11111111222233334444555555555555|PAYMENT_REQUIRED")]
+    [InlineData("NAK|11111111222233334444555555555555|junk|PAYMENT_REQUIRED")]
+    [InlineData("NAK||INVALID_ENCODING")]
+    public void Malformed_nak_never_completes_outbox_item(string payload)
+    {
+        Guid id = Guid.Parse("11111111-2222-3333-4444-555555555555");
+
+        EdgeLprSendResult result = EdgeLprResponseParser.Match(
+            $"{(char)0x02}{payload}{(char)0x03}", id);
+
+        Assert.Equal("INVALID_RESPONSE", result.Code);
+        Assert.False(EdgeLprResponseParser.IsPermanentFailure(result));
     }
 
     [Fact]

@@ -63,6 +63,7 @@ run-jpxlpr-edge-test.bat
 - 입차 `devicenum=401`, 출차 `devicenum=402`
 - 표준 이미지 파일명
 - TCP 29200 전송과 `ACK|EventId`
+- `NAK|EventId|ResultCode`와 응답 EventId 검증
 - 장애 시 같은 EventId 재전송
 - DB의 `indeviceid=4001`, `outdeviceid=4002`
 

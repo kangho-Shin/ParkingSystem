@@ -106,8 +106,8 @@ Windows 세션 0에서 UI가 보이지 않으므로 WinForms 프로그램은 관
 - 카메라별 차로·장비번호·방향 적용
 - 표준 파일명으로 이미지 저장
 - EdgeService TCP 29200 전송
-- ACK를 받은 사건만 Outbox에서 제거
-- 장애 시 같은 EventId로 재전송
+- ACK 또는 처리가 끝난 확정 NAK 사건은 Outbox에서 제거
+- 중앙·설정·통신 장애 시 같은 EventId로 재전송
 - 종료 시 미전송 큐를 JSON으로 보존
 
 중앙 REST, MySQL, APSMain, UDP 관리서버, LDM과 차단기를 직접 제어하지 않는다.

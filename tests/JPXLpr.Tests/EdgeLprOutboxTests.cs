@@ -79,6 +79,22 @@ public sealed class EdgeLprOutboxTests
         Assert.Equal(1, sender.SendCount);
     }
 
+    [Fact]
+    public async Task Payment_required_is_removed_without_endless_retry()
+    {
+        string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "outbox.json");
+        PaymentRequiredSender sender = new();
+        await using EdgeLprOutbox outbox = new(path, sender, TimeSpan.FromMilliseconds(10));
+        outbox.Enqueue(TestEvent(402));
+
+        outbox.Start();
+        await sender.Sent.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await WaitUntilAsync(() => outbox.Snapshot().Count == 0);
+
+        Assert.Empty(outbox.Snapshot());
+        Assert.Equal(1, sender.SendCount);
+    }
+
     private static EdgeLprEvent TestEvent(int device) => EdgeLprEvent.Create(
         9001, 2, device, 9010, "Entry", DateTime.Now, $"12가{device:0000}", Guid.NewGuid());
 
@@ -125,7 +141,27 @@ public sealed class EdgeLprOutboxTests
             SendCount++;
             Sent.TrySetResult();
             return Task.FromResult(new EdgeLprSendResult(
-                false, "NAK", $"NAK|{value.EventId:N}|INVALID_DEVICE"));
+                false,
+                "NAK",
+                $"NAK|{value.EventId:N}|INVALID_DEVICE",
+                "INVALID_DEVICE"));
+        }
+    }
+
+    private sealed class PaymentRequiredSender : IEdgeLprSender
+    {
+        public TaskCompletionSource Sent { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int SendCount { get; private set; }
+
+        public Task<EdgeLprSendResult> SendAsync(EdgeLprEvent value, CancellationToken token)
+        {
+            SendCount++;
+            Sent.TrySetResult();
+            return Task.FromResult(new EdgeLprSendResult(
+                false,
+                "NAK",
+                $"NAK|{value.EventId:N}|PAYMENT_REQUIRED",
+                "PAYMENT_REQUIRED"));
         }
     }
 }
