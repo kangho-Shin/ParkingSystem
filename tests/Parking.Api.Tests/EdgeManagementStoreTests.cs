@@ -1,3 +1,4 @@
+using Dapper;
 using Parking.Contracts;
 using Parking.EdgeService;
 
@@ -5,6 +6,93 @@ namespace Parking.Api.Tests;
 
 public sealed class EdgeManagementStoreTests
 {
+    [Fact]
+    public async Task 기존_로컬설정DB에_dirty상태를_추가한다()
+    {
+        string databasePath = Path.Combine(
+            Path.GetTempPath(),
+            $"parking-edge-dirty-migration-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            string connectionString = $"Data Source={databasePath};Pooling=False";
+            await using (Microsoft.Data.Sqlite.SqliteConnection connection = new(connectionString))
+            {
+                await connection.OpenAsync();
+                await connection.ExecuteAsync("""
+                    CREATE TABLE local_configuration_state(
+                        site_id INTEGER PRIMARY KEY,
+                        version INTEGER NOT NULL,
+                        updated_at_utc TEXT NOT NULL);
+                    """);
+            }
+
+            LocalConfigurationStore store = new(connectionString);
+            await store.InitializeAsync(CancellationToken.None);
+
+            await using Microsoft.Data.Sqlite.SqliteConnection verify = new(connectionString);
+            IReadOnlyList<string> columns = (await verify.QueryAsync<string>(
+                "SELECT name FROM pragma_table_info('local_configuration_state');")).AsList();
+            Assert.Contains("dirty", columns);
+        }
+        finally
+        {
+            if (File.Exists(databasePath)) File.Delete(databasePath);
+        }
+    }
+
+    [Fact]
+    public async Task 로컬설정_수정은_동기화완료때까지_dirty로_유지한다()
+    {
+        string databasePath = Path.Combine(
+            Path.GetTempPath(),
+            $"parking-edge-dirty-state-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            LocalConfigurationStore store = new(
+                $"Data Source={databasePath};Pooling=False");
+            await store.InitializeAsync(CancellationToken.None);
+            SiteConfiguration configuration = new(
+                new ParkingSite(9001, "시험현장", true),
+                Array.Empty<ParkingLane>(),
+                new[] { new ParkingDevice(4001, 9001, null, 401, "LPR", "깨진장치명", null, true, 29200) });
+            await store.ApplyRemoteAsync(
+                new VersionedSiteConfiguration(configuration, 10, DateTimeOffset.UtcNow),
+                CancellationToken.None);
+            Assert.False(await store.IsDirtyAsync(9001, CancellationToken.None));
+
+            await store.SaveDeviceAsync(
+                configuration.Devices.Single() with { DeviceName = "입차LPR" },
+                CancellationToken.None);
+            Assert.True(await store.IsDirtyAsync(9001, CancellationToken.None));
+
+            await store.SetStateAsync(9001, 11, DateTimeOffset.UtcNow, CancellationToken.None);
+            Assert.False(await store.IsDirtyAsync(9001, CancellationToken.None));
+        }
+        finally
+        {
+            if (File.Exists(databasePath)) File.Delete(databasePath);
+        }
+    }
+
+    [Theory]
+    [InlineData(true, 2, 10, ConfigurationSyncAction.PushLocal)]
+    [InlineData(false, 2, 10, ConfigurationSyncAction.PullRemote)]
+    [InlineData(false, 10, 2, ConfigurationSyncAction.PushLocal)]
+    [InlineData(false, 10, 10, ConfigurationSyncAction.None)]
+    public void 동기화방향은_시간이아닌_버전과_dirty상태로_결정한다(
+        bool localDirty,
+        long localVersion,
+        long remoteVersion,
+        ConfigurationSyncAction expected)
+    {
+        ConfigurationSyncAction result = ConfigurationSyncPolicy.Resolve(
+            localDirty, localVersion, remoteVersion);
+
+        Assert.Equal(expected, result);
+    }
+
     [Fact]
     public async Task 로컬설정이_없으면_중앙버전0도_적용한다()
     {
