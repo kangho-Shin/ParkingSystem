@@ -17,10 +17,18 @@ public sealed class LocalConfigurationStore
             CREATE TABLE IF NOT EXISTS local_device(site_id INTEGER NOT NULL,device_id INTEGER NOT NULL,lane_id INTEGER NULL,device_number INTEGER NOT NULL,device_type TEXT NOT NULL,device_name TEXT NOT NULL,ip_address TEXT NULL,port INTEGER NULL,enabled INTEGER NOT NULL,PRIMARY KEY(site_id,device_id),UNIQUE(site_id,device_number));
             CREATE TABLE IF NOT EXISTS local_device_link(site_id INTEGER NOT NULL,source_device_id INTEGER NOT NULL,target_device_id INTEGER NOT NULL,link_type TEXT NOT NULL,enabled INTEGER NOT NULL,PRIMARY KEY(site_id,source_device_id,target_device_id,link_type));
             CREATE TABLE IF NOT EXISTS local_operation_variable(site_id INTEGER NOT NULL,groupnum INTEGER NOT NULL,command_type TEXT NOT NULL,value TEXT NULL,PRIMARY KEY(site_id,groupnum,command_type));
-            CREATE TABLE IF NOT EXISTS local_configuration_state(site_id INTEGER PRIMARY KEY,version INTEGER NOT NULL,updated_at_utc TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS local_configuration_state(site_id INTEGER PRIMARY KEY,version INTEGER NOT NULL,updated_at_utc TEXT NOT NULL,dirty INTEGER NOT NULL DEFAULT 0);
             """;
         await using SqliteConnection connection = new(_connectionString);
         await connection.ExecuteAsync(new CommandDefinition(sql, cancellationToken: cancellationToken));
+        IEnumerable<string> stateColumns = await connection.QueryAsync<string>(
+            new CommandDefinition(
+                "SELECT name FROM pragma_table_info('local_configuration_state');",
+                cancellationToken: cancellationToken));
+        if (!stateColumns.Any(x => string.Equals(x, "dirty", StringComparison.OrdinalIgnoreCase)))
+            await connection.ExecuteAsync(new CommandDefinition(
+                "ALTER TABLE local_configuration_state ADD COLUMN dirty INTEGER NOT NULL DEFAULT 0;",
+                cancellationToken: cancellationToken));
     }
 
     public Task SaveAsync(SiteConfiguration value, CancellationToken token) => MutateAsync(value.Site.SiteId, async (c, t) =>
@@ -66,6 +74,14 @@ public sealed class LocalConfigurationStore
         return await c.QuerySingleOrDefaultAsync<long>(new CommandDefinition("SELECT version FROM local_configuration_state WHERE site_id=@SiteId;", new { SiteId = siteId }, cancellationToken: token));
     }
 
+    public async Task<bool> IsDirtyAsync(long siteId, CancellationToken token)
+    {
+        await using SqliteConnection c = new(_connectionString);
+        return await c.QuerySingleOrDefaultAsync<long>(new CommandDefinition(
+            "SELECT dirty FROM local_configuration_state WHERE site_id=@SiteId;",
+            new { SiteId = siteId }, cancellationToken: token)) != 0;
+    }
+
     public async Task<VersionedSiteConfiguration?> GetVersionedAsync(long siteId, CancellationToken token)
     {
         SiteConfiguration? configuration = await GetAsync(siteId, token);
@@ -109,7 +125,7 @@ public sealed class LocalConfigurationStore
         await c.OpenAsync(token);
         await using SqliteTransaction t = c.BeginTransaction();
         await action(c, t);
-        await c.ExecuteAsync(new CommandDefinition("INSERT INTO local_configuration_state VALUES(@SiteId,1,@Now) ON CONFLICT(site_id) DO UPDATE SET version=version+1,updated_at_utc=@Now;", new { SiteId = siteId, Now = DateTimeOffset.UtcNow.ToString("O") }, t, cancellationToken: token));
+        await c.ExecuteAsync(new CommandDefinition("INSERT INTO local_configuration_state(site_id,version,updated_at_utc,dirty) VALUES(@SiteId,1,@Now,1) ON CONFLICT(site_id) DO UPDATE SET version=version+1,updated_at_utc=@Now,dirty=1;", new { SiteId = siteId, Now = DateTimeOffset.UtcNow.ToString("O") }, t, cancellationToken: token));
         await t.CommitAsync(token);
     }
 
@@ -121,7 +137,7 @@ public sealed class LocalConfigurationStore
     private async Task SetStateCoreAsync(long siteId, long version, DateTimeOffset updatedAtUtc, CancellationToken token)
     {
         await using SqliteConnection c = new(_connectionString);
-        await c.ExecuteAsync(new CommandDefinition("INSERT INTO local_configuration_state VALUES(@SiteId,@Version,@UpdatedAt) ON CONFLICT(site_id) DO UPDATE SET version=@Version,updated_at_utc=@UpdatedAt;", new { SiteId = siteId, Version = version, UpdatedAt = updatedAtUtc.ToUniversalTime().ToString("O") }, cancellationToken: token));
+        await c.ExecuteAsync(new CommandDefinition("INSERT INTO local_configuration_state(site_id,version,updated_at_utc,dirty) VALUES(@SiteId,@Version,@UpdatedAt,0) ON CONFLICT(site_id) DO UPDATE SET version=@Version,updated_at_utc=@UpdatedAt,dirty=0;", new { SiteId = siteId, Version = version, UpdatedAt = updatedAtUtc.ToUniversalTime().ToString("O") }, cancellationToken: token));
     }
     private sealed record SiteRow(long SiteId, string SiteName, long Enabled);
     private sealed record LaneRow(long LaneId, long SiteId, long GroupNumber, string LaneName, string Direction, long Enabled);
